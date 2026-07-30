@@ -46,14 +46,33 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => (
   </>
 );
 
-const App = () => {
+/**
+ * GlobalOverlays — renders SplashScreen, RoleSelectionModal, AIChatButton
+ * ONLY on non-login routes. Login page must be completely clean and standalone.
+ */
+const GlobalOverlays = () => {
+  const { pathname } = useLocation();
+  const isLoginPage = pathname === '/login' || pathname === '/login.html';
+  if (isLoginPage) return null;
   return (
-    <BrowserRouter>
+    <>
       <SplashScreen />
       <RoleSelectionModal />
       <AIChatButton />
+    </>
+  );
+};
+
+const App = () => {
+  return (
+    <BrowserRouter>
+      <GlobalOverlays />
       <ScrollToTopAndReveal />
       <Routes>
+        {/* Standalone Login without main Navbar, Footer, SplashScreen, or any overlay */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/login.html" element={<Login />} />
+
         {/* Main Marketing Pages wrapped in Navbar and Footer */}
         <Route path="/*" element={
           <MainLayout>
@@ -63,7 +82,6 @@ const App = () => {
               <Route path="/advisor" element={<Advisor />} />
               <Route path="/pricing" element={<Pricing />} />
               <Route path="/reviews" element={<Reviews />} />
-              <Route path="/login" element={<Login />} />
               <Route path="/explorer" element={<Explorer />} />
               <Route path="/blog" element={<Blog />} />
               <Route path="/galaxy" element={<CareerGalaxy />} />

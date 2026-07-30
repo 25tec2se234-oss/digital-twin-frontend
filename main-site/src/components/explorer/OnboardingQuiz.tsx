@@ -5,6 +5,7 @@ import { QUIZ_QUESTIONS, DOMAIN_OPTIONS, TraitVector } from '../../config/quizCo
 import { normalizeUserTraits } from '../../utils/matchingEngine';
 
 const Cpu = (LucideIcons as any).Cpu;
+const X = (LucideIcons as any).X;
 
 interface OnboardingQuizProps {
   onComplete: () => void;
@@ -98,7 +99,7 @@ const OnboardingQuiz: React.FC<OnboardingQuizProps> = ({ onComplete, onClose }) 
                   onClick={onClose}
                   className="absolute top-4 right-4 p-2 text-gray-500 hover:text-white hover:bg-gray-800 rounded-full transition-colors z-20"
                 >
-                  <LucideIcons.X size={24} />
+                  <X size={24} />
                 </button>
               )}
 

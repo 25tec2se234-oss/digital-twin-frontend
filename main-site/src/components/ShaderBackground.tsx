@@ -147,7 +147,7 @@ export default function ShaderBackground() {
       mouseY = window.innerHeight - e.clientY; // Flip y for WebGL
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mousemove', handleMouseMove, { passive: true });
 
     // Handle resizing
     const resizeCanvas = () => {

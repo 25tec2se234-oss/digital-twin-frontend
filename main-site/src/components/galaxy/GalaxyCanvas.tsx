@@ -295,10 +295,10 @@ export default function GalaxyCanvas({ searchQuery, pinnedPaths, onHoverStar, on
       }
     };
 
-    canvas.addEventListener('mousedown', onMouseDown);
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
-    canvas.addEventListener('wheel', onWheel);
+    canvas.addEventListener('mousedown', onMouseDown, { passive: true });
+    window.addEventListener('mousemove', onMouseMove, { passive: true });
+    window.addEventListener('mouseup', onMouseUp, { passive: true });
+    canvas.addEventListener('wheel', onWheel, { passive: true });
     canvas.addEventListener('click', onClick);
 
     // --- ANIMATION LOOP ---

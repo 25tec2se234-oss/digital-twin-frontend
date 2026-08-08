@@ -65,7 +65,7 @@
             demoMode: false,
             formspreeId: 'mvzdpwyv',
             siteUrl: 'https://digitaltwinvrs.com/',
-            shareText: 'Check out Digital Twin Verse by Eco-Novators — AI career simulation platform!'
+            shareText: 'Check out Digital Twin Verse by DTV Family — AI career simulation platform!'
         };
 
         /* ═══════════════════════════════════════════════════════════════
@@ -712,7 +712,15 @@
                     '<p>' + escapeHTML(desc) + '</p>' +
                     '<div class="fd-pills">' + pills + '</div>' +
                     '</div>';
-                detail.classList.add('open');
+                            detail.classList.add('open');
+
+            var _cg = document.getElementById('career-grid');
+            if (_cg) _cg.style.display = 'none';
+            var _dc = document.querySelector('.dash-controls');
+            if (_dc) _dc.style.display = 'none';
+            var _dov = document.getElementById('dash-overall');
+            if (_dov) _dov.style.display = 'none';
+
 
                 cards.forEach(function(c) {
                     var selected = c === card;
@@ -1183,7 +1191,15 @@
                 '</div></div>' +
                 '</div>';
 
-            detail.classList.add('open');
+                        detail.classList.add('open');
+
+            var _cg = document.getElementById('career-grid');
+            if (_cg) _cg.style.display = 'none';
+            var _dc = document.querySelector('.dash-controls');
+            if (_dc) _dc.style.display = 'none';
+            var _dov = document.getElementById('dash-overall');
+            if (_dov) _dov.style.display = 'none';
+
 
             var notesInput = document.getElementById('notes-' + id);
             if (notesInput) notesInput.value = saved.notes || '';
@@ -1224,7 +1240,18 @@
             document.querySelectorAll('.ccard').forEach(function(el) {
                 el.classList.remove('selected');
             });
+            
+            var _cg = document.getElementById('career-grid');
+            if (_cg) _cg.style.display = '';
+            var _dc = document.querySelector('.dash-controls');
+            if (_dc) _dc.style.display = '';
+            var _dov = document.getElementById('dash-overall');
+            if (_dov) _dov.style.display = '';
+            
+            var _db = document.getElementById('dashboard');
+            if (_db) _db.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
+
 
         function togSkill(careerId, skillKey, el) {
             var data = getLSD();
@@ -1348,7 +1375,7 @@
                     doc.text('Digital Twin Verse', ml, y);
                     doc.setFontSize(9);
                     doc.setTextColor(194, 208, 224);
-                    doc.text('Career Report  |  Eco-Novators  |  https://digitaltwinvrs.com/', ml, y + 7);
+                    doc.text('Career Report  |  DTV Family  |  https://digitaltwinvrs.com/', ml, y + 7);
                     doc.setFontSize(8);
                     doc.setTextColor(122, 143, 168);
                     doc.text('Generated: ' + dateStr, pw - mr, y + 7, {
@@ -1502,7 +1529,7 @@
                     doc.setFontSize(7);
                     doc.setFont('helvetica', 'normal');
                     doc.setTextColor(122, 143, 168);
-                    doc.text('© 2026 Eco-Novators · Digital Twin Verse · digitaltwinverse@gmail.com · +91 75201 19837 · https://digitaltwinvrs.com/', pw / 2, 289, {
+                    doc.text('© 2026 DTV Family · Digital Twin Verse · digitaltwinverse@gmail.com · +91 75201 19837 · https://digitaltwinvrs.com/', pw / 2, 289, {
                         align: 'center'
                     });
 
@@ -1515,7 +1542,7 @@
                 // Fallback: plain text download
                 var lines = [
                     'DIGITAL TWIN VERSE — CAREER REPORT',
-                    'Eco-Novators | https://digitaltwinvrs.com/',
+                    'DTV Family | https://digitaltwinvrs.com/',
                     'Generated: ' + dateStr,
                     '═══════════════════════════════════════════',
                     '',
@@ -1560,7 +1587,7 @@
                 }
                 lines.push('');
                 lines.push('───────────────────────────────────────────');
-                lines.push('© 2026 Eco-Novators | Digital Twin Verse | digitaltwinverse@gmail.com | +91 75201 19837 | https://digitaltwinvrs.com/');
+                lines.push('© 2026 DTV Family | Digital Twin Verse | digitaltwinverse@gmail.com | +91 75201 19837 | https://digitaltwinvrs.com/');
 
                 var blob = new Blob([lines.join('\n')], {
                     type: 'text/plain'
@@ -4595,7 +4622,7 @@
             .catch(err => {
                 btnElem.disabled = false;
                 btnElem.innerHTML = originalText;
-                window.location.href = 'https://rzp.io/l/' + fallbackLinkId;
+                window.location.href = 'https://pages.razorpay.com/' + fallbackLinkId + '/view';
             });
         }
 
@@ -5352,7 +5379,7 @@
                 if (count <= 0) {
                     clearInterval(waTimer);
                     if (cdTxt) cdTxt.textContent = 'Opening WhatsApp…';
-                    window.open('https://chat.whatsapp.com/EoeMkImMW9u2NzEn2XTjr9?mode=gi_t', '_blank');
+                    window.open('https://whatsapp.com/channel/0029Vb7v5JeFHWprvjppb207', '_blank');
                     setTimeout(function() {
                         closeWAOverlay();
                         showTY();

@@ -308,12 +308,7 @@ window.addEventListener('load', () => {
         });
     };
 
-    let frames = 0;
-    const runAggressive = () => {
-        cleanup();
-        frames++;
-        if (frames < 180) requestAnimationFrame(runAggressive);
-    };
-    runAggressive();
+    // Run once after a brief delay to allow layout to settle, instead of 180 times
+    setTimeout(cleanup, 300);
     window.addEventListener('resize', cleanup);
 });

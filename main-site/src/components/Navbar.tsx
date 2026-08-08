@@ -61,6 +61,9 @@ const Navbar: React.FC = () => {
             <Link to="/explorer">Explorer</Link>
           </li>
           <li>
+            <Link to="/wheel">Daily Spin</Link>
+          </li>
+          <li>
             <Link to="/features">Features</Link>
           </li>
           <li>

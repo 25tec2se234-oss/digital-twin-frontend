@@ -12,6 +12,7 @@ import Login from './pages/Login';
 import Explorer from './pages/Explorer';
 import Blog from './pages/Blog';
 import CareerGalaxy from './pages/CareerGalaxy';
+import WheelPage from './pages/WheelPage';
 
 // Layout Components
 import Navbar from './components/Navbar';
@@ -53,7 +54,8 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => (
 const GlobalOverlays = () => {
   const { pathname } = useLocation();
   const isLoginPage = pathname === '/login' || pathname === '/login.html';
-  if (isLoginPage) return null;
+  const isWheelPage = pathname === '/wheel' || pathname === '/wheel.html';
+  if (isLoginPage || isWheelPage) return null;
   return (
     <>
       <SplashScreen />
@@ -72,6 +74,10 @@ const App = () => {
         {/* Standalone Login without main Navbar, Footer, SplashScreen, or any overlay */}
         <Route path="/login" element={<Login />} />
         <Route path="/login.html" element={<Login />} />
+
+        {/* Standalone Wheel without main Navbar, Footer, SplashScreen, or any overlay */}
+        <Route path="/wheel" element={<WheelPage />} />
+        <Route path="/wheel.html" element={<WheelPage />} />
 
         {/* Main Marketing Pages wrapped in Navbar and Footer */}
         <Route path="/*" element={

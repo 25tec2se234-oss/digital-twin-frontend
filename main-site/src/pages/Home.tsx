@@ -137,29 +137,30 @@ const Home: React.FC = () => {
                         zero personalised guidance. The consequences compound over decades.</p>
                 </div>
                 <div className="pcg rv d1">
-                    <div className="pc">
+                    <a href="/problem/years-wasted" className="pc" style={{ textDecoration: 'none', color: 'inherit' }}>
                         <div className="pc-ic">⏳</div>
                         <h4>Years Wasted</h4>
                         <p>2–4 years in the wrong course before realising the mismatch — too late to pivot easily.</p>
-                    </div>
-                    <div className="pc">
+                        <span className="pc-hint">Read full dedicated breakdown &amp; news &rarr;</span>
+                    </a>
+                    <a href="/problem/mounting-stress" className="pc" style={{ textDecoration: 'none', color: 'inherit' }}>
                         <div className="pc-ic">😰</div>
                         <h4>Mounting Stress</h4>
-                        <p>Family pressure, peer comparison, and zero clarity create a widespread career-anxiety crisis.
-                        </p>
-                    </div>
-                    <div className="pc">
+                        <p>Family pressure, peer comparison, and zero clarity create a widespread career-anxiety crisis.</p>
+                        <span className="pc-hint">Read full dedicated breakdown &amp; news &rarr;</span>
+                    </a>
+                    <a href="/problem/no-personalisation" className="pc" style={{ textDecoration: 'none', color: 'inherit' }}>
                         <div className="pc-ic">🎯</div>
                         <h4>No Personalisation</h4>
-                        <p>Generic counsellors give generic advice. Your unique profile, strengths and potential are
-                            ignored.</p>
-                    </div>
-                    <div className="pc">
+                        <p>Generic counsellors give generic advice. Your unique profile, strengths and potential are ignored.</p>
+                        <span className="pc-hint">Read full dedicated breakdown &amp; news &rarr;</span>
+                    </a>
+                    <a href="/problem/missed-earnings" className="pc" style={{ textDecoration: 'none', color: 'inherit' }}>
                         <div className="pc-ic">💸</div>
                         <h4>Missed Earnings</h4>
-                        <p>Wrong decisions at the right age directly reduce lifetime earnings and career satisfaction.
-                        </p>
-                    </div>
+                        <p>Wrong decisions at the right age directly reduce lifetime earnings and career satisfaction.</p>
+                        <span className="pc-hint">Read full dedicated breakdown &amp; news &rarr;</span>
+                    </a>
                 </div>
             </div>
         </section>

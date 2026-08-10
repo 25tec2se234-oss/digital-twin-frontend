@@ -57,11 +57,12 @@ const CandidatePortal = () => {
       setIsDownloading(true);
       await document.fonts.ready; // Wait for fonts to fully load
       const opt = {
-        margin:       0,
+        margin:       [0.4, 0, 0.4, 0], // Top/Bottom margin to prevent touching edges
         filename:     `Offer_Letter_${offer.candidate_details?.name || 'Candidate'}.pdf`,
         image:        { type: 'jpeg', quality: 1 },
         html2canvas:  { scale: 3, useCORS: true, letterRendering: true, allowTaint: true },
-        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
+        pagebreak:    { mode: ['css', 'legacy'] }
       };
       await html2pdf().set(opt).from(previewRef.current).save();
     } catch (err) {

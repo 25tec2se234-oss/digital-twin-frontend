@@ -35,7 +35,10 @@ const LivePreview = ({ data }: { data: any }) => {
   // Real Verification URL that actually works when scanned!
   // It points to the /offer/verify/:id route of this exact application.
   let verifyUrl = 'https://digitaltwinvrs.com';
-  if (data.id) {
+  if (data.verification_token) {
+    const baseUrl = window.location.origin + window.location.pathname;
+    verifyUrl = `${baseUrl}#/offer/verify/${data.verification_token}`;
+  } else if (data.id) {
     const baseUrl = window.location.origin + window.location.pathname;
     verifyUrl = `${baseUrl}#/offer/verify/${data.id}`;
   }

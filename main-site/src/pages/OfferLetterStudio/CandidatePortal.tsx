@@ -16,25 +16,31 @@ const CandidatePortal = () => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [actionType, setActionType] = useState<'accept' | 'decline' | null>(null);
   const [inputValue, setInputValue] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [candidateEmail, setCandidateEmail] = useState('');
   
   const previewRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    fetchOffer();
-  }, [token]);
+  // We don't fetch on mount anymore, we wait for email verification
+  const handleAuth = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!candidateEmail.trim()) return;
 
-  const fetchOffer = async () => {
     try {
       setLoading(true);
-      const docSnap = await api.get(`/verify/${token}`);
+      setError('');
+      const docSnap = await api.post(`/access/${token}`, { email: candidateEmail.trim() });
       
       if (docSnap && !docSnap.error) {
         setOffer({ ...docSnap });
+        setIsAuthenticated(true);
       } else {
         setError('Invalid or expired offer verification link.');
       }
     } catch (err: any) {
-      if (err.response && err.response.status === 404) {
+      if (err.response && err.response.status === 401) {
+        setError('Invalid email address. Please try again.');
+      } else if (err.response && err.response.status === 404) {
         setError('Invalid or expired offer verification link.');
       } else {
         setError('Error retrieving offer document.');
@@ -87,7 +93,7 @@ const CandidatePortal = () => {
 
       setActionType(null);
       setInputValue('');
-      await fetchOffer();
+      await handleAuth();
     } catch (err: any) {
       alert(err.response?.data?.message || `Failed to ${actionType} offer`);
       console.error(err);
@@ -96,7 +102,7 @@ const CandidatePortal = () => {
     }
   };
 
-  if (loading) {
+  if (loading && isAuthenticated) {
     return (
       <div className="min-h-screen bg-[#0f1115] flex flex-col items-center justify-center">
         <div className="w-16 h-16 relative flex items-center justify-center mb-6">
@@ -104,6 +110,48 @@ const CandidatePortal = () => {
           <div className="absolute inset-0 border-4 border-indigo-500 rounded-full border-t-transparent animate-spin"></div>
         </div>
         <p className="text-gray-400 font-medium tracking-wider uppercase text-sm">Verifying Cryptographic Token...</p>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#0f1115] flex items-center justify-center p-4">
+        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-[#161920] max-w-md w-full rounded-3xl shadow-2xl p-10 border border-white/10">
+          <div className="w-16 h-16 bg-indigo-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-indigo-500/20">
+            <ShieldCheck className="w-8 h-8 text-indigo-500" />
+          </div>
+          <h2 className="text-2xl font-black text-white mb-2 text-center">Secure Access</h2>
+          <p className="text-gray-400 text-sm text-center mb-8">Please verify your identity to access your offer letter.</p>
+          
+          <form onSubmit={handleAuth}>
+            <div className="mb-6">
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Registered Email</label>
+              <input 
+                type="email" 
+                value={candidateEmail}
+                onChange={(e) => setCandidateEmail(e.target.value)}
+                placeholder="Enter your email address"
+                className="w-full bg-[#0f1115] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-all"
+                required
+              />
+            </div>
+            
+            {error && (
+              <div className="mb-6 p-3 bg-rose-500/10 border border-rose-500/20 rounded-lg text-rose-400 text-sm text-center">
+                {error}
+              </div>
+            )}
+            
+            <button 
+              type="submit"
+              disabled={loading || !candidateEmail.trim()}
+              className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-bold text-white transition-all shadow-[0_0_20px_rgba(99,102,241,0.3)] disabled:opacity-50"
+            >
+              {loading ? 'Verifying...' : 'Access Offer Letter'}
+            </button>
+          </form>
+        </motion.div>
       </div>
     );
   }

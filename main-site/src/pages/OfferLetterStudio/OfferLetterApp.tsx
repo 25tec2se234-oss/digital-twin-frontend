@@ -30,11 +30,11 @@ const OfferLetterApp = () => {
 
   return (
     <div className="flex h-screen bg-[#0f1115] text-gray-300 font-sans overflow-hidden selection:bg-indigo-500/30">
-      
+
       {/* Premium Sidebar */}
       <AnimatePresence mode="wait">
         {isSidebarOpen && (
-          <motion.div 
+          <motion.div
             initial={{ width: 0, opacity: 0 }}
             animate={{ width: 280, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
@@ -51,7 +51,7 @@ const OfferLetterApp = () => {
                 <p className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Digital Twin Verse</p>
               </div>
             </div>
-            
+
             {/* Nav */}
             <nav className="flex-1 py-8 px-4 space-y-2 overflow-y-auto custom-scrollbar">
               <div className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4 px-2">Menu</div>
@@ -65,7 +65,7 @@ const OfferLetterApp = () => {
                     className="relative block"
                   >
                     {isActive && (
-                      <motion.div 
+                      <motion.div
                         layoutId="active-nav"
                         className="absolute inset-0 bg-gradient-to-r from-indigo-500/15 to-purple-500/5 rounded-xl border border-indigo-500/20"
                       />
@@ -79,7 +79,7 @@ const OfferLetterApp = () => {
                 );
               })}
             </nav>
-            
+
             {/* User Area */}
             <div className="p-4 border-t border-white/5 bg-[#12141a]">
               <button
@@ -98,7 +98,7 @@ const OfferLetterApp = () => {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col relative overflow-hidden bg-gradient-to-br from-[#0f1115] to-[#161920]">
-        
+
         {/* Subtle Background Glows */}
         <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none" />
         <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-purple-600/10 rounded-full blur-[120px] pointer-events-none" />
@@ -106,7 +106,7 @@ const OfferLetterApp = () => {
         {/* Global Toast */}
         <AnimatePresence>
           {toastMessage && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
@@ -121,7 +121,7 @@ const OfferLetterApp = () => {
         {/* Premium Header */}
         <header className="h-20 flex items-center justify-between px-8 relative z-10 border-b border-white/5 bg-[#0f1115]/50 backdrop-blur-xl">
           <div className="flex items-center">
-            <button 
+            <button
               onClick={() => setSidebarOpen(!isSidebarOpen)}
               className="mr-6 p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
             >
@@ -129,8 +129,8 @@ const OfferLetterApp = () => {
             </button>
             <div className="relative group hidden md:block">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-indigo-400 transition-colors" />
-              <input 
-                type="text" 
+              <input
+                type="text"
                 placeholder="Quick search offers..."
                 className="w-64 bg-[#161920] border border-white/10 rounded-full py-2 pl-10 pr-4 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 transition-all shadow-inner"
               />
@@ -138,7 +138,7 @@ const OfferLetterApp = () => {
           </div>
 
           <div className="flex items-center space-x-6">
-            <button 
+            <button
               onClick={() => showToast('No new notifications')}
               className="relative p-2 text-gray-400 hover:text-white transition-colors"
             >
@@ -146,7 +146,7 @@ const OfferLetterApp = () => {
               <span className="absolute top-1.5 right-2 w-2 h-2 bg-indigo-500 rounded-full shadow-[0_0_5px_rgba(99,102,241,0.8)]"></span>
             </button>
             <div className="h-8 w-px bg-white/10"></div>
-            <div 
+            <div
               onClick={() => showToast('Profile settings are currently synced with Settings page.')}
               className="flex items-center space-x-3 cursor-pointer group"
             >
@@ -165,7 +165,7 @@ const OfferLetterApp = () => {
 
         {/* Scrollable Routes */}
         <main className="flex-1 overflow-x-hidden overflow-y-auto relative z-10 custom-scrollbar p-6 lg:p-10">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}

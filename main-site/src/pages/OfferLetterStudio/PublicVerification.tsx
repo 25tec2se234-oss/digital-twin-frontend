@@ -1,24 +1,15 @@
 // @ts-nocheck
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { db } from '../../config/firebase';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { ShieldCheck, Calendar, MapPin, Briefcase, Download, CheckCircle2, XCircle, FileSignature } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import LivePreview from './LivePreview';
-import html2pdf from 'html2pdf.js';
+import api from '../../utils/api';
+import { ShieldCheck, Calendar, MapPin, Briefcase, CheckCircle2, XCircle, FileSignature } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 const PublicVerification = () => {
   const { token } = useParams();
   const [offer, setOffer] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [actionLoading, setActionLoading] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [actionType, setActionType] = useState<'accept' | 'decline' | null>(null);
-  const [inputValue, setInputValue] = useState('');
-  
-  const previewRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchOffer();
@@ -27,74 +18,22 @@ const PublicVerification = () => {
   const fetchOffer = async () => {
     try {
       setLoading(true);
-      const docRef = doc(db, 'offer_letters', token || '');
-      const docSnap = await getDoc(docRef);
+      const docSnap = await api.get(`/verify/${token}`);
       
-      if (docSnap.exists()) {
-        setOffer({ id: docSnap.id, ...docSnap.data() });
+      if (docSnap && !docSnap.error) {
+        setOffer({ ...docSnap });
       } else {
-        setError('Invalid or expired offer verification link.');
+        setError('Invalid or expired verification link.');
       }
     } catch (err: any) {
-      setError('Error retrieving offer document.');
+      if (err.response && err.response.status === 404) {
+        setError('Invalid or expired verification link.');
+      } else {
+        setError('Error retrieving document.');
+      }
       console.error(err);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleDownload = async () => {
-    if (!previewRef.current) return;
-    try {
-      setIsDownloading(true);
-      await document.fonts.ready; // Wait for fonts to fully load
-      const opt = {
-        margin:       0,
-        filename:     `Offer_Letter_${offer.candidate_details?.name || 'Candidate'}.pdf`,
-        image:        { type: 'jpeg', quality: 1 },
-        html2canvas:  { scale: 3, useCORS: true, letterRendering: true, allowTaint: true },
-        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
-      };
-      await html2pdf().set(opt).from(previewRef.current).save();
-    } catch (err) {
-      console.error("PDF generation error: ", err);
-      alert("Failed to generate PDF");
-    } finally {
-      setIsDownloading(false);
-    }
-  };
-
-  const submitAction = async () => {
-    if (!actionType) return;
-    try {
-      setActionLoading(true);
-      const updateData: any = {
-        status: actionType === 'accept' ? 'ACCEPTED' : 'DECLINED',
-        actionDate: new Date().toISOString()
-      };
-
-      if (actionType === 'accept') {
-        if (!inputValue.trim()) {
-           alert("Please type your name to sign.");
-           setActionLoading(false);
-           return;
-        }
-        updateData.signature = inputValue;
-      } else {
-        updateData.declineReason = inputValue;
-      }
-
-      const docRef = doc(db, 'offer_letters', token || '');
-      await updateDoc(docRef, updateData);
-      
-      setActionType(null);
-      setInputValue('');
-      await fetchOffer();
-    } catch (err: any) {
-      alert(`Failed to ${actionType} offer`);
-      console.error(err);
-    } finally {
-      setActionLoading(false);
     }
   };
 
@@ -105,7 +44,7 @@ const PublicVerification = () => {
           <div className="absolute inset-0 border-4 border-indigo-500/20 rounded-full"></div>
           <div className="absolute inset-0 border-4 border-indigo-500 rounded-full border-t-transparent animate-spin"></div>
         </div>
-        <p className="text-gray-400 font-medium tracking-wider uppercase text-sm">Verifying Cryptographic Token...</p>
+        <p className="text-gray-400 font-medium tracking-wider uppercase text-sm">Verifying Cryptographic Record...</p>
       </div>
     );
   }
@@ -125,67 +64,11 @@ const PublicVerification = () => {
   }
 
   const isRevoked = offer.status === 'REVOKED';
-  const isAccepted = offer.status === 'ACCEPTED';
+  const isActive = offer.status === 'ACCEPTED';
   const isDeclined = offer.status === 'DECLINED';
-  const isActionable = !isRevoked && !isAccepted && !isDeclined;
 
   return (
     <div className="min-h-screen bg-[#0f1115] py-16 px-4 sm:px-6 lg:px-8 font-sans selection:bg-indigo-500/30">
-      
-      {/* Hidden PDF Container */}
-      <div className="absolute top-[-10000px] left-[-10000px] z-[-10] opacity-0 pointer-events-none">
-        <div ref={previewRef}>
-          <LivePreview data={offer} />
-        </div>
-      </div>
-
-      <AnimatePresence>
-        {actionType && (
-          <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
-          >
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-[#161920] border border-white/10 rounded-2xl p-8 max-w-md w-full shadow-2xl"
-            >
-              <h3 className="text-xl font-bold text-white mb-2">
-                {actionType === 'accept' ? 'Sign & Accept Offer' : 'Decline Offer'}
-              </h3>
-              <p className="text-gray-400 text-sm mb-6">
-                {actionType === 'accept' 
-                  ? 'Please type your full legal name below to act as your electronic signature.' 
-                  : 'Please provide an optional reason for declining this offer.'}
-              </p>
-              
-              <input 
-                type="text" 
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                placeholder={actionType === 'accept' ? "Full Legal Name" : "Reason (Optional)"}
-                className="w-full bg-[#0f1115] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-all mb-6"
-              />
-              
-              <div className="flex justify-end space-x-3">
-                <button 
-                  onClick={() => { setActionType(null); setInputValue(''); }}
-                  className="px-4 py-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={submitAction}
-                  disabled={actionLoading || (actionType === 'accept' && !inputValue.trim())}
-                  className={`px-6 py-2 rounded-xl font-bold text-white transition-all shadow-lg ${actionType === 'accept' ? 'bg-indigo-600 hover:bg-indigo-500 shadow-indigo-500/20' : 'bg-rose-600 hover:bg-rose-500 shadow-rose-500/20'} disabled:opacity-50`}
-                >
-                  {actionLoading ? 'Processing...' : 'Confirm'}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       <div className="max-w-4xl mx-auto relative z-10">
         
         {/* Decorative elements */}
@@ -199,41 +82,31 @@ const PublicVerification = () => {
           <h1 className="text-4xl md:text-5xl font-black tracking-tight uppercase">
             <span className="text-white">DIGITAL</span> <span className="text-orange-500">TWIN VERSE</span>
           </h1>
-          <p className="mt-3 text-lg text-indigo-300 font-medium tracking-wide uppercase">Official Employment Offer</p>
+          <p className="mt-3 text-lg text-indigo-300 font-medium tracking-wide uppercase">Public Verification Record</p>
         </motion.div>
 
         {/* Status Card */}
         <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }} className="bg-[#161920]/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/10 overflow-hidden mb-8">
-          <div className={`p-8 border-b border-white/5 flex flex-col md:flex-row items-center justify-between ${isRevoked ? 'bg-rose-500/10' : isAccepted ? 'bg-emerald-500/10' : isDeclined ? 'bg-orange-500/10' : 'bg-indigo-500/10'}`}>
-            <div className="flex items-center space-x-6 mb-6 md:mb-0">
-              <div className={`p-4 rounded-full bg-white/5 backdrop-blur-md shadow-inner ${isRevoked ? 'text-rose-400' : isAccepted ? 'text-emerald-400' : isDeclined ? 'text-orange-400' : 'text-indigo-400'}`}>
+          <div className={`p-8 border-b border-white/5 flex flex-col md:flex-row items-center justify-between ${isRevoked ? 'bg-rose-500/10' : isActive ? 'bg-emerald-500/10' : isDeclined ? 'bg-orange-500/10' : 'bg-indigo-500/10'}`}>
+            <div className="flex items-center space-x-6">
+              <div className={`p-4 rounded-full bg-white/5 backdrop-blur-md shadow-inner ${isRevoked ? 'text-rose-400' : isActive ? 'text-emerald-400' : isDeclined ? 'text-orange-400' : 'text-indigo-400'}`}>
                 {isRevoked ? <XCircle className="w-8 h-8" /> : 
-                 isAccepted ? <CheckCircle2 className="w-8 h-8" /> :
+                 isActive ? <CheckCircle2 className="w-8 h-8" /> :
                  isDeclined ? <XCircle className="w-8 h-8" /> :
                  <ShieldCheck className="w-8 h-8" />}
               </div>
               <div>
-                <h2 className={`text-2xl font-black tracking-tight ${isRevoked ? 'text-rose-400' : isAccepted ? 'text-emerald-400' : isDeclined ? 'text-orange-400' : 'text-indigo-400'}`}>
-                  {isRevoked ? 'Offer Revoked' : isAccepted ? 'Offer Accepted' : isDeclined ? 'Offer Declined' : 'Cryptographically Verified'}
+                <h2 className={`text-2xl font-black tracking-tight ${isRevoked ? 'text-rose-400' : isActive ? 'text-emerald-400' : isDeclined ? 'text-orange-400' : 'text-indigo-400'}`}>
+                  {isRevoked ? 'Record Revoked' : isActive ? 'Verified Employee' : isDeclined ? 'Record Inactive' : 'Valid Offer Record'}
                 </h2>
                 <p className="text-sm text-gray-400 mt-1 font-medium">
-                  {isRevoked ? 'This offer letter is no longer valid or active.' : 
-                   isAccepted ? `Electronically signed & accepted on ${new Date(offer.actionDate).toLocaleDateString()}` :
-                   isDeclined ? 'You have declined this employment offer.' :
-                   'This is an authentic, tamper-proof document issued directly by DTV.'}
+                  {isRevoked ? 'This individual is no longer associated with DTV or the offer was revoked.' : 
+                   isActive ? `This individual is a verified member of Digital Twin Verse.` :
+                   isDeclined ? 'This offer was declined and is inactive.' :
+                   'This is an authentic, cryptographically secured employment offer record by DTV.'}
                 </p>
               </div>
             </div>
-            {!isRevoked && (
-              <button 
-                onClick={handleDownload}
-                disabled={isDownloading}
-                className="flex items-center px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-bold text-white transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                {isDownloading ? 'Generating...' : 'Download PDF'}
-              </button>
-            )}
           </div>
           
           <div className="p-8 md:p-12">
@@ -244,7 +117,7 @@ const PublicVerification = () => {
                   <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest">Candidate Info</h3>
                 </div>
                 <p className="text-3xl font-black text-white">{offer.candidate_details?.name || 'N/A'}</p>
-                <p className="text-sm font-mono text-indigo-400 mt-2 bg-indigo-500/10 inline-block px-3 py-1 rounded-lg border border-indigo-500/20">ID: {offer.id}</p>
+                <p className="text-sm font-mono text-indigo-400 mt-2 bg-indigo-500/10 inline-block px-3 py-1 rounded-lg border border-indigo-500/20">Ref ID: {offer.id}</p>
               </div>
               
               <div>
@@ -297,40 +170,19 @@ const PublicVerification = () => {
             
             <div className="mt-16 bg-[#0f1115] rounded-2xl p-6 border border-white/5 flex items-center justify-between">
                <div>
-                 <p className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-1">Authorized By</p>
+                 <div className="flex items-center space-x-2 mb-2">
+                    <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                    <span className="text-xs text-emerald-400 uppercase tracking-widest font-bold">Officially Verified</span>
+                 </div>
                  <p className="text-lg font-bold text-white">Digital Twin Verse</p>
-                 <p className="text-sm text-gray-400">Human Resources</p>
+                 <p className="text-sm text-gray-400">Authentic Employment Record</p>
                </div>
-               <div className="opacity-20 text-white">
+               <div className="opacity-20 text-emerald-500">
                  <FileSignature className="w-12 h-12" />
                </div>
             </div>
           </div>
         </motion.div>
-
-        {/* Action Bar */}
-        {isActionable && (
-          <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }} className="bg-[#161920]/90 backdrop-blur-xl p-8 rounded-3xl shadow-2xl border border-white/10 flex flex-col md:flex-row items-center justify-between">
-            <div className="mb-6 md:mb-0 text-center md:text-left">
-              <h3 className="text-xl font-bold text-white tracking-tight">Final Step</h3>
-              <p className="text-sm text-gray-400 mt-1">Review the PDF and confirm your decision below.</p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
-              <button 
-                onClick={() => setActionType('decline')}
-                className="px-8 py-3.5 border border-white/10 text-sm font-bold rounded-xl text-gray-300 hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/30 transition-all disabled:opacity-50"
-              >
-                Decline Offer
-              </button>
-              <button 
-                onClick={() => setActionType('accept')}
-                className="relative group px-8 py-3.5 text-sm font-bold rounded-xl text-white bg-indigo-600 hover:bg-indigo-500 transition-all shadow-[0_0_20px_rgba(99,102,241,0.5)] disabled:opacity-50"
-              >
-                Accept & Sign Offer
-              </button>
-            </div>
-          </motion.div>
-        )}
 
         <div className="mt-12 text-center">
           <p className="text-xs font-bold text-gray-600 uppercase tracking-widest">

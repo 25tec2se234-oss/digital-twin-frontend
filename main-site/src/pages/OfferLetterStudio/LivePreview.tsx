@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React from 'react';
-import QRCode from 'react-qr-code';
+import { QRCodeCanvas } from 'qrcode.react';
 // PDF Engine: html2pdf.js (HTML to Canvas via html2canvas)
 
 // This acts as a highly styled CSS-based preview mimicking a printed A4 document.
@@ -29,17 +29,19 @@ const LivePreview = ({ data }: { data: any }) => {
     hairline: '#E7E5DF'
   };
 
-  // Using the offer ID if it exists, otherwise generating a fallback for preview
+  // The human-readable Offer ID (generated during creation)
   const offerId = data.offer_id || `DTV-OFR-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
-  const verifyUrl = `https://digitaltwinvrs.com/verify/${offerId}`;
+  
+  // Real Verification URL that actually works when scanned!
+  // It points to the /offer/verify/:id route of this exact application.
+  let verifyUrl = 'https://digitaltwinvrs.com';
+  if (data.id) {
+    const baseUrl = window.location.origin + window.location.pathname;
+    verifyUrl = `${baseUrl}#/offer/verify/${data.id}`;
+  }
 
   return (
     <>
-      <style>
-        {`
-          @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600&display=swap');
-        `}
-      </style>
       <div 
         className="mx-auto overflow-hidden relative"
         style={{
@@ -91,9 +93,9 @@ const LivePreview = ({ data }: { data: any }) => {
                 </div>
               </div>
               <div className="text-right text-[9px] uppercase tracking-wider space-y-1 font-medium" style={{ color: '#9CA3AF' /* light gray */ }}>
-                <p>https://digitaltwinvrs.com/</p>
-                <p>contactdigitaltwinverse@gmail.com</p>
-                <p>digitaltwinverse@gmail.com</p>
+                <p><a href="https://digitaltwinvrs.com/" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>https://digitaltwinvrs.com/</a></p>
+                <p><a href="mailto:contactdigitaltwinverse@gmail.com" style={{ color: 'inherit', textDecoration: 'none' }}>contactdigitaltwinverse@gmail.com</a></p>
+                <p><a href="mailto:digitaltwinverse@gmail.com" style={{ color: 'inherit', textDecoration: 'none' }}>digitaltwinverse@gmail.com</a></p>
                 <p>India</p>
               </div>
             </div>
@@ -284,11 +286,11 @@ const LivePreview = ({ data }: { data: any }) => {
             <div className="mt-20 pt-6 flex justify-between items-end" style={{ borderTop: `1px solid ${theme.hairline}` }}>
               <div className="text-[9px] uppercase tracking-widest font-medium" style={{ color: theme.textMuted }}>
                 <p className="mb-1">Offer ID: {offerId}</p>
-                <p>digitaltwinvrs.com</p>
+                <p><a href="https://digitaltwinvrs.com" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>digitaltwinvrs.com</a></p>
               </div>
               <div>
                 <div className="p-1.5 rounded-sm" style={{ backgroundColor: theme.paper, border: `1px solid ${theme.hairline}` }}>
-                  <QRCode value={verifyUrl} size={48} level="M" fgColor={theme.ink} />
+                  <QRCodeCanvas value={verifyUrl} size={48} level="M" fgColor={theme.ink} />
                 </div>
               </div>
             </div>

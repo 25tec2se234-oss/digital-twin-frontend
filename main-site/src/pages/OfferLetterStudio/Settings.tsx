@@ -1,7 +1,6 @@
 // @ts-nocheck
 import React, { useState, useEffect } from 'react';
-import { db } from '../../config/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import api from '../../utils/api';
 import { Save, Building, Users, Briefcase, ChevronRight, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -26,10 +25,9 @@ const Settings = () => {
 
   const fetchSettings = async () => {
     try {
-      const docRef = doc(db, 'settings', 'general');
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        setSettings({ ...settings, ...docSnap.data() });
+      const response = await api.get('/settings');
+      if (response && !response.error) {
+        setSettings({ ...settings, ...response });
       }
     } catch (err) {
       console.error('Failed to fetch settings', err);
@@ -44,7 +42,7 @@ const Settings = () => {
   const handleSave = async () => {
     try {
       setLoading(true);
-      await setDoc(doc(db, 'settings', 'general'), settings);
+      await api.put('/settings', settings);
       showToast('Settings saved successfully!');
     } catch (err) {
       console.error(err);

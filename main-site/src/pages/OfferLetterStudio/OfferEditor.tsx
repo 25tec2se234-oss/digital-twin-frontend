@@ -1,7 +1,6 @@
 // @ts-nocheck
 import React, { useState, useEffect } from 'react';
-import { db } from '../../config/firebase';
-import { collection, addDoc, updateDoc, doc, getDoc, serverTimestamp } from 'firebase/firestore';
+import api from '../../utils/api';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, FileCheck2, ChevronRight, ChevronLeft, Sparkles, Check, FileText, CheckCircle2, XCircle, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -10,10 +9,10 @@ import LivePreview from './LivePreview';
 const STEPS = ['Candidate', 'Position', 'Compensation', 'Roles', 'Terms'];
 
 const defaultResponsibilities = [
-  "Spearhead the development and maintenance of scalable applications.",
-  "Collaborate with cross-functional teams to define, design, and ship new features.",
-  "Ensure the performance, quality, and responsiveness of applications.",
-  "Identify and correct bottlenecks and fix bugs."
+  "Drive strategic initiatives and collaborate with cross-functional teams to achieve company goals.",
+  "Maintain a high standard of quality, performance, and take ownership of core deliverables.",
+  "Communicate effectively with internal stakeholders and contribute to the SaaS platform's growth.",
+  "Identify areas for process improvement and proactively implement scalable solutions."
 ];
 
 const defaultClauses = [
@@ -21,6 +20,166 @@ const defaultClauses = [
   { id: 'confidentiality', title: 'Confidentiality', content: 'You shall not disclose any confidential information regarding the company to any third party.', enabled: true },
   { id: 'ip', title: 'Intellectual Property', content: 'Any intellectual property created during your employment belongs exclusively to Digital Twin Verse.', enabled: true },
   { id: 'termination', title: 'Termination', content: 'Either party may terminate this agreement by providing 30 days written notice.', enabled: true },
+];
+
+const roleDataMap = [
+  {
+    keywords: ['frontend', 'front-end', 'react', 'ui developer', 'web developer', 'angular', 'vue'],
+    responsibilities: [
+      "Architect and build responsive, highly-performant user interfaces using React and modern web technologies.",
+      "Collaborate closely with UI/UX designers to translate design wireframes into high-quality code.",
+      "Optimize components for maximum performance across a vast array of web-capable devices and browsers.",
+      "Participate in code reviews, establish front-end best practices, and maintain a high bar for code quality."
+    ],
+    clauses: [
+      { id: 'ip_front', title: 'Code & IP Ownership', content: 'All front-end architecture, UI components, and software code developed during employment are the exclusive intellectual property of Digital Twin Verse.', enabled: true },
+    ]
+  },
+  {
+    keywords: ['backend', 'back-end', 'node', 'server', 'api', 'database', 'python', 'java', 'golang', 'ruby'],
+    responsibilities: [
+      "Design, build, and maintain scalable and robust backend services and APIs.",
+      "Manage database schemas, optimize queries, and ensure data integrity and security.",
+      "Collaborate with front-end engineers to seamlessly integrate user-facing elements with server-side logic.",
+      "Implement automated testing platforms and unit tests to ensure system reliability."
+    ],
+    clauses: [
+      { id: 'data_security', title: 'Data Security & Access', content: 'You will have access to core databases. Strict adherence to DTV data security and privacy protocols is mandatory.', enabled: true },
+    ]
+  },
+  {
+    keywords: ['fullstack', 'full-stack', 'software engineer', 'sde', 'developer', 'programmer', 'architect', 'coder', 'engineer'],
+    responsibilities: [
+      "Develop and maintain both client-side and server-side architecture for SaaS products.",
+      "Design and implement robust APIs and integrate third-party services.",
+      "Troubleshoot, debug, and upgrade software to ensure high performance and responsiveness.",
+      "Write clean, functional code on the front- and back-end following industry best practices."
+    ],
+    clauses: [
+      { id: 'ip_code', title: 'Code & IP Ownership', content: 'All software architecture, databases, and code developed during employment are the exclusive intellectual property of Digital Twin Verse.', enabled: true },
+    ]
+  },
+  {
+    keywords: ['ai', 'machine learning', 'ml', 'data scientist', 'data science', 'prompt engineer', 'nlp', 'llm', 'artificial intelligence'],
+    responsibilities: [
+      "Design, build, and deploy machine learning models and AI agents tailored to educational use cases.",
+      "Analyze large datasets to extract actionable insights and improve the Digital Twin Verse AI Engine.",
+      "Continuously optimize AI models for accuracy, low latency, and cost-efficiency.",
+      "Stay current with the latest advancements in AI/ML and evaluate new technologies for product integration."
+    ],
+    clauses: [
+      { id: 'ip_model', title: 'AI Model & Data Ownership', content: 'All algorithms, models, datasets, and AI prompts developed during your tenure remain the exclusive intellectual property of Digital Twin Verse.', enabled: true },
+    ]
+  },
+  {
+    keywords: ['product manager', 'pm', 'product owner', 'project manager', 'scrum master', 'agile'],
+    responsibilities: [
+      "Drive the product vision, strategy, and roadmap for the Digital Twin Verse platform.",
+      "Gather and prioritize product and customer requirements to define feature specifications.",
+      "Work closely with engineering, design, and marketing teams to ensure successful product delivery.",
+      "Analyze product metrics and user feedback to iterate and improve the SaaS offering continuously."
+    ],
+    clauses: [
+      { id: 'confidentiality_pm', title: 'Strategic Confidentiality', content: 'You will have access to the strategic product roadmap. You must not disclose any upcoming features, strategies, or metrics to competitors.', enabled: true },
+    ]
+  },
+  {
+    keywords: ['designer', 'ui', 'ux', 'product designer', 'graphic', 'video', 'animator', 'motion', 'art', 'creative'],
+    responsibilities: [
+      "Create intuitive, user-centric, and visually stunning designs for the DTV platform.",
+      "Develop wireframes, user flows, and interactive prototypes to communicate design ideas.",
+      "Conduct user research and usability testing to gather feedback and refine designs.",
+      "Maintain and evolve the Digital Twin Verse design system and brand guidelines."
+    ],
+    clauses: [
+      { id: 'ip_design', title: 'Design Assets Ownership', content: 'All design files, prototypes, wireframes, and creative assets produced during your employment belong solely to Digital Twin Verse.', enabled: true },
+    ]
+  },
+  {
+    keywords: ['sales', 'account executive', 'business development', 'bde', 'sdr', 'bdc', 'revenue'],
+    responsibilities: [
+      "Identify and prospect new business opportunities within the EdTech sector (schools, colleges, B2B).",
+      "Conduct product demonstrations and pitch the DTV platform to key decision-makers.",
+      "Manage the entire sales cycle from lead generation to closing deals and achieving revenue targets.",
+      "Maintain accurate CRM records and provide regular sales forecasts to management."
+    ],
+    clauses: [
+      { id: 'non_compete', title: 'Non-Compete & Non-Solicitation', content: 'During your employment and for 12 months thereafter, you shall not engage with any direct competitor in the EdTech SaaS space or solicit DTV clients.', enabled: true },
+      { id: 'commission', title: 'Commission Structure', content: 'In addition to your base salary, you are eligible for performance-based commissions as per the DTV Sales Incentive Plan.', enabled: true },
+    ]
+  },
+  {
+    keywords: ['marketing', 'seo', 'content', 'growth', 'digital marketer', 'social media', 'community', 'event', 'brand'],
+    responsibilities: [
+      "Develop and execute comprehensive digital marketing campaigns to drive user acquisition and brand awareness.",
+      "Manage social media channels, content creation, and SEO/SEM strategies for the DTV brand.",
+      "Analyze marketing campaign performance metrics and optimize for better ROI.",
+      "Collaborate with the product team to launch new features and craft compelling go-to-market messaging."
+    ],
+    clauses: [
+      { id: 'brand_rep', title: 'Brand Representation', content: 'You will act as a voice for the DTV brand. All public communications must align with the company’s official PR and brand guidelines.', enabled: true },
+    ]
+  },
+  {
+    keywords: ['hr', 'human resources', 'talent', 'recruiter'],
+    responsibilities: [
+      "Manage the end-to-end recruitment lifecycle to attract top talent for the SaaS engineering and business teams.",
+      "Develop and implement HR strategies and initiatives aligned with the overall business strategy.",
+      "Bridge management and employee relations by addressing demands, grievances, or other issues.",
+      "Nurture a positive working environment and oversee performance appraisal systems."
+    ],
+    clauses: [
+      { id: 'hr_confidentiality', title: 'Employee Data Confidentiality', content: 'You will have access to sensitive employee compensation and performance data. Strict confidentiality is mandatory.', enabled: true },
+    ]
+  },
+  {
+    keywords: ['qa', 'quality assurance', 'tester', 'sdet'],
+    responsibilities: [
+      "Design, develop, and execute automated and manual test scripts for web applications.",
+      "Identify, record, document thoroughly, and track bugs during testing phases.",
+      "Perform thorough regression testing when bugs are resolved.",
+      "Collaborate with software engineers to ensure code meets stringent quality standards."
+    ],
+    clauses: [
+      { id: 'ip_qa', title: 'Testing IP Ownership', content: 'All test scripts, automation frameworks, and documentation created remain the exclusive property of DTV.', enabled: true },
+    ]
+  },
+  {
+    keywords: ['devops', 'cloud', 'infrastructure', 'sre'],
+    responsibilities: [
+      "Build and maintain robust CI/CD pipelines for seamless deployment of the DTV platform.",
+      "Manage cloud infrastructure (AWS/GCP), ensuring high availability, security, and scalability.",
+      "Monitor system performance, troubleshoot server issues, and implement proactive scaling strategies.",
+      "Automate operational processes and maintain strict security compliance across all environments."
+    ],
+    clauses: [
+      { id: 'infra_security', title: 'Infrastructure Security & Compliance', content: 'You are responsible for production infrastructure. Adherence to strict security protocols and zero-downtime principles is required.', enabled: true },
+    ]
+  },
+  {
+    keywords: ['customer success', 'support', 'csm'],
+    responsibilities: [
+      "Serve as the primary point of contact for onboarded schools, colleges, and enterprise clients.",
+      "Proactively monitor customer usage metrics to ensure successful platform adoption and retention.",
+      "Troubleshoot user issues and collaborate with the engineering team to resolve technical support tickets.",
+      "Conduct training sessions and webinars to maximize client value from the DTV platform."
+    ],
+    clauses: [
+      { id: 'client_confidentiality', title: 'Client Data Privacy', content: 'You must strictly adhere to data privacy laws (e.g., GDPR) when handling sensitive student and institutional data.', enabled: true },
+    ]
+  },
+  {
+    keywords: ['data analyst', 'analyst', 'business intelligence', 'bi'],
+    responsibilities: [
+      "Interpret data, analyze results using statistical techniques, and provide ongoing reports.",
+      "Develop and implement databases, data collection systems, and data analytics strategies.",
+      "Acquire data from primary or secondary data sources and maintain databases.",
+      "Identify, analyze, and interpret trends or patterns in complex data sets to guide product decisions."
+    ],
+    clauses: [
+      { id: 'data_ownership', title: 'Data Assets Ownership', content: 'All dashboards, analytics models, and data reports generated are the exclusive property of Digital Twin Verse.', enabled: true },
+    ]
+  }
 ];
 
 const OfferEditor = () => {
@@ -48,10 +207,10 @@ const OfferEditor = () => {
       const fetchDraft = async () => {
         setInitialLoading(true);
         try {
-          const docRef = doc(db, 'offer_letters', id);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            setOfferData({ ...offerData, ...docSnap.data() });
+          const offer = await api.get(`/${id}`);
+          if (offer) {
+            // Note: Postgres backend returns `id` as integer, and `candidate_details` as JSON object
+            setOfferData({ ...offerData, ...offer });
           }
         } catch (err) {
           console.error(err);
@@ -62,6 +221,53 @@ const OfferEditor = () => {
       fetchDraft();
     }
   }, [id]);
+
+  // Magic Auto-Fill Engine for SaaS Roles
+  const lastMatchedRoleRef = React.useRef<number | null>(null);
+
+  useEffect(() => {
+    const title = offerData.position_details.designation;
+    if (!title || title.length < 2) return;
+
+    // Use regex \b for whole-word matching to prevent substring bugs (e.g. 'ai' matching 'trainer')
+    const matchedRoleIndex = roleDataMap.findIndex(role => 
+      role.keywords.some(kw => {
+        // Escape special characters in keyword just in case, though they are mostly alphanumeric
+        const escapedKw = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return new RegExp(`\\b${escapedKw}\\b`, 'i').test(title);
+      })
+    );
+    
+    if (matchedRoleIndex !== -1) {
+      if (matchedRoleIndex !== lastMatchedRoleRef.current) {
+          const matchedRole = roleDataMap[matchedRoleIndex];
+          
+          // Construct merged clauses
+          const baseClauses = defaultClauses.map(c => ({...c}));
+          const roleSpecificClauses = matchedRole.clauses.map(c => ({...c, id: `role_${c.id}`}));
+          const mergedClauses = [...baseClauses, ...roleSpecificClauses];
+
+          setOfferData(prev => ({
+              ...prev,
+              responsibilities: [...matchedRole.responsibilities],
+              clauses: mergedClauses
+          }));
+          
+          lastMatchedRoleRef.current = matchedRoleIndex;
+      }
+    } else {
+      // No match found. If we previously matched a role, revert to generic defaults
+      // so it doesn't get stuck showing the wrong roles.
+      if (lastMatchedRoleRef.current !== null) {
+          setOfferData(prev => ({
+              ...prev,
+              responsibilities: [...defaultResponsibilities],
+              clauses: [...defaultClauses]
+          }));
+          lastMatchedRoleRef.current = null;
+      }
+    }
+  }, [offerData.position_details.designation]);
 
   const [newResp, setNewResp] = useState('');
   const [newClause, setNewClause] = useState({ title: '', content: '' });
@@ -78,28 +284,44 @@ const OfferEditor = () => {
     try {
       setIsSaving(true);
       
-      const payload = {
-        ...offerData,
-        updatedAt: serverTimestamp(),
-      };
+      const payload = { ...offerData };
       
       if (id) {
-        const docRef = doc(db, 'offer_letters', id);
-        await updateDoc(docRef, payload);
+        await api.put(`/${id}`, payload);
         console.log("Offer letter updated with ID: ", id);
       } else {
         payload.status = 'DRAFT';
-        payload.createdAt = serverTimestamp();
-        payload.offer_id = `DTV-OFR-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
-        const docRef = await addDoc(collection(db, 'offer_letters'), payload);
-        console.log("Offer letter saved with ID: ", docRef.id);
+        const response = await api.post('/', payload);
+        console.log("Offer letter saved with ID: ", response.id);
       }
       
       // Navigate back to dashboard after save
       navigate('/offer-letter-studio');
     } catch (error) {
-      console.error("Error adding document: ", error);
+      console.error("Error saving document: ", error);
       alert("Failed to save offer letter. Check console for details.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleGenerate = async () => {
+    try {
+      setIsSaving(true);
+      
+      const payload = { ...offerData, status: 'SENT' };
+      
+      if (id) {
+        await api.put(`/${id}`, payload);
+      } else {
+        await api.post('/', payload);
+      }
+      
+      // Navigate back to dashboard after generate
+      navigate('/offer-letter-studio');
+    } catch (error) {
+      console.error("Error generating document: ", error);
+      alert("Failed to generate offer letter.");
     } finally {
       setIsSaving(false);
     }
@@ -195,13 +417,16 @@ const OfferEditor = () => {
         return (
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
             <div className="relative">
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Job Title / Designation *</label>
+              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+                <span>Job Title / Designation *</span>
+                <span className="text-[10px] text-indigo-400 font-normal flex items-center"><Sparkles className="w-3 h-3 mr-1"/> Auto-generates Roles & Terms</span>
+              </label>
               <input 
                 type="text" 
                 value={offerData.position_details.designation}
                 onChange={(e) => setOfferData({...offerData, position_details: {...offerData.position_details, designation: e.target.value}})}
                 className="w-full bg-[#161920] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all placeholder-gray-600" 
-                placeholder="e.g. Senior AI Engineer"
+                placeholder="e.g. Senior Frontend Engineer"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -411,8 +636,12 @@ const OfferEditor = () => {
               >
                 {isSaving ? 'Saving...' : <><Save className="w-4 h-4 mr-2" /> Save Draft</>}
               </button>
-              <button className="relative group flex items-center px-5 py-2 text-sm font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-500 transition-all shadow-[0_0_15px_rgba(99,102,241,0.4)]">
-                <FileCheck2 className="w-4 h-4 mr-2" /> Generate
+              <button 
+                onClick={handleGenerate}
+                disabled={isSaving}
+                className="relative group flex items-center px-5 py-2 text-sm font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-500 transition-all shadow-[0_0_15px_rgba(99,102,241,0.4)] disabled:opacity-50"
+              >
+                {isSaving ? 'Processing...' : <><FileCheck2 className="w-4 h-4 mr-2" /> Generate</>}
               </button>
           </div>
         </div>

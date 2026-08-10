@@ -1,12 +1,13 @@
 // @ts-nocheck
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 import OfferLetterApp from './pages/OfferLetterStudio/OfferLetterApp';
 import PublicVerification from './pages/OfferLetterStudio/PublicVerification';
+import CandidatePortal from './pages/OfferLetterStudio/CandidatePortal';
 
 const App = () => {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Routes>
         {/* Redirect base URL to the studio */}
         <Route path="/" element={<Navigate to="/offer-letter-studio" replace />} />
@@ -17,10 +18,13 @@ const App = () => {
         {/* Public Verification Link */}
         <Route path="/offer/verify/:token" element={<PublicVerification />} />
         
+        {/* Candidate Actions Portal Link */}
+        <Route path="/offer/action/:token" element={<CandidatePortal />} />
+        
         {/* Catch-all to prevent 404s */}
         <Route path="*" element={<Navigate to="/offer-letter-studio" replace />} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   );
 };
 

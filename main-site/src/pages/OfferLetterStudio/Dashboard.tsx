@@ -1,10 +1,9 @@
 // @ts-nocheck
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Search, FileText, CheckCircle, XCircle, Clock, Edit, Eye, Download, Sparkles, Filter, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Plus, Search, FileText, CheckCircle, XCircle, Clock, Edit, Eye, Download, Sparkles, Filter, MoreHorizontal, Trash2, Link as LinkIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { db } from '../../config/firebase';
-import { collection, onSnapshot, query, orderBy, deleteDoc, doc } from 'firebase/firestore';
+import api from '../../utils/api';
 import html2pdf from 'html2pdf.js';
 import LivePreview from './LivePreview';
 
@@ -23,11 +22,15 @@ const Dashboard = () => {
   const [offerToDownload, setOfferToDownload] = useState<any>(null);
   const previewRef = useRef<HTMLDivElement>(null);
 
+  const copyCandidateLink = (token: string) => {
+    const baseUrl = window.location.origin + window.location.pathname;
+    const link = `${baseUrl}#/offer/action/${token}`;
+    navigator.clipboard.writeText(link);
+    alert("Candidate action link copied to clipboard!");
+  };
+
   useEffect(() => {
-    const unsubscribe = fetchOffers();
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
+    fetchOffers();
   }, []);
 
   // Trigger PDF Generation once offerToDownload is set and rendered off-screen
@@ -37,18 +40,14 @@ const Dashboard = () => {
     }
   }, [offerToDownload]);
 
-  const fetchOffers = () => {
+  const fetchOffers = async () => {
     setLoading(true);
-    const q = query(collection(db, 'offer_letters'), orderBy('createdAt', 'desc'));
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetchedOffers = [];
-      const st = { total: snapshot.size, drafts: 0, sent: 0, accepted: 0, declined: 0, expired: 0 };
+    try {
+      const response = await api.get('/', { params: { limit: 1000 } });
+      const fetchedOffers = response.offers || [];
+      const st = { total: response.total || 0, drafts: 0, sent: 0, accepted: 0, declined: 0, expired: 0 };
       
-      snapshot.forEach((document) => {
-        const data = document.data();
-        fetchedOffers.push({ id: document.id, ...data });
-        
+      fetchedOffers.forEach((data: any) => {
         const status = data.status ? data.status.toUpperCase() : 'DRAFT';
         if (status === 'DRAFT') st.drafts++;
         if (status === 'SENT') st.sent++;
@@ -59,20 +58,19 @@ const Dashboard = () => {
       
       setOffers(fetchedOffers);
       setStats(st);
-      setLoading(false);
-    }, (error) => {
+    } catch (error) {
       console.error('Failed to fetch offers', error);
+    } finally {
       setLoading(false);
-    });
-
-    return unsubscribe;
+    }
   };
 
   const handleDelete = async (id: string) => {
     if (window.confirm("Are you sure you want to permanently delete this offer letter?")) {
       try {
-        await deleteDoc(doc(db, 'offer_letters', id));
+        await api.delete(`/${id}`);
         setActiveDropdown(null);
+        fetchOffers();
       } catch (err) {
         console.error("Error deleting offer: ", err);
         alert("Failed to delete offer.");
@@ -308,7 +306,14 @@ const Dashboard = () => {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end items-center space-x-2 opacity-50 group-hover:opacity-100 transition-opacity">
-                        <Link to={`/offer/verify/${offer.id}`} target="_blank" className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-all" title="Preview Verification Portal">
+                        <button 
+                          onClick={() => copyCandidateLink(offer.verification_token)}
+                          className="p-2 text-gray-400 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-all" 
+                          title="Copy Candidate Link"
+                        >
+                          <LinkIcon className="w-4 h-4" />
+                        </button>
+                        <Link to={`/offer/action/${offer.verification_token}`} target="_blank" className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-all" title="Preview Candidate Portal">
                           <Eye className="w-4 h-4" />
                         </Link>
                         <Link to={`/offer-letter-studio/edit/${offer.id}`} className="p-2 text-gray-400 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-all" title="Edit Offer">

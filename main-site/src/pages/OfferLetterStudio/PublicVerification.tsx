@@ -4,12 +4,16 @@ import { useParams } from 'react-router-dom';
 import api from '../../utils/api';
 import { ShieldCheck, Calendar, MapPin, Briefcase, CheckCircle2, XCircle, FileSignature } from 'lucide-react';
 import { motion } from 'framer-motion';
+import LivePreview from './LivePreview';
 
 const PublicVerification = () => {
   const { token } = useParams();
   const [offer, setOffer] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [securityPassed, setSecurityPassed] = useState(false);
+  const [securityInput, setSecurityInput] = useState('');
+  const [securityError, setSecurityError] = useState('');
 
   useEffect(() => {
     fetchOffer();
@@ -58,6 +62,58 @@ const PublicVerification = () => {
           </div>
           <h2 className="text-3xl font-black text-white mb-3">Verification Failed</h2>
           <p className="text-gray-400 leading-relaxed">{error}</p>
+        </motion.div>
+      </div>
+    );
+  }
+
+  const handleSecurityCheck = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (securityInput.trim().toUpperCase() === offer.offer_id.toUpperCase()) {
+      setSecurityPassed(true);
+      setSecurityError('');
+    } else {
+      setSecurityError('ACCESS DENIED: Incorrect Offer ID.');
+    }
+  };
+
+  if (!securityPassed && offer) {
+    return (
+      <div className="min-h-screen bg-[#0f1115] flex items-center justify-center p-4">
+        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-[#161920] max-w-md w-full rounded-3xl shadow-2xl p-10 border border-indigo-500/20">
+          <div className="w-16 h-16 bg-indigo-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-indigo-500/20">
+            <ShieldCheck className="w-8 h-8 text-indigo-500" />
+          </div>
+          <h2 className="text-2xl font-black text-white mb-2 text-center">Z++ Security Gateway</h2>
+          <p className="text-gray-400 text-sm text-center mb-8">This is a restricted document. Please enter the Exact Offer ID printed on the physical letter to unlock the verification record.</p>
+          
+          <form onSubmit={handleSecurityCheck}>
+            <div className="mb-6">
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Offer ID</label>
+              <input 
+                type="text" 
+                value={securityInput}
+                onChange={(e) => setSecurityInput(e.target.value)}
+                placeholder="e.g. DTV-OFR-2026-1529"
+                className="w-full bg-[#0f1115] border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-all"
+                required
+              />
+            </div>
+            
+            {securityError && (
+              <div className="mb-6 p-3 bg-rose-500/10 border border-rose-500/20 rounded-lg text-rose-400 text-sm text-center font-mono">
+                {securityError}
+              </div>
+            )}
+            
+            <button 
+              type="submit"
+              disabled={!securityInput.trim()}
+              className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-bold text-white transition-all shadow-[0_0_20px_rgba(99,102,241,0.3)] disabled:opacity-50"
+            >
+              Verify & Unlock Record
+            </button>
+          </form>
         </motion.div>
       </div>
     );
@@ -168,7 +224,7 @@ const PublicVerification = () => {
               </div>
             )}
             
-            <div className="mt-16 bg-[#0f1115] rounded-2xl p-6 border border-white/5 flex items-center justify-between">
+              <div className="mt-16 bg-[#0f1115] rounded-2xl p-6 border border-white/5 flex items-center justify-between">
                <div>
                  <div className="flex items-center space-x-2 mb-2">
                     <ShieldCheck className="w-5 h-5 text-emerald-400" />
@@ -184,7 +240,20 @@ const PublicVerification = () => {
           </div>
         </motion.div>
 
-        <div className="mt-12 text-center">
+        {/* Visual Document Preview */}
+        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }} className="mt-12 flex flex-col items-center">
+          <div className="flex items-center justify-center space-x-2 mb-6">
+            <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest">Original Document View</h3>
+          </div>
+          
+          <div className="w-full overflow-x-auto pb-8 custom-scrollbar flex justify-center">
+            <div className="relative shadow-2xl rounded-sm overflow-hidden border border-white/10 shrink-0">
+              <LivePreview data={offer} />
+            </div>
+          </div>
+        </motion.div>
+
+        <div className="mt-4 text-center">
           <p className="text-xs font-bold text-gray-600 uppercase tracking-widest">
             Secured by Digital Twin Verse Enterprise Infrastructure
           </p>

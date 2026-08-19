@@ -18,8 +18,23 @@ const OfferLetterApp = () => {
     setTimeout(() => setToastMessage(''), 3000);
   };
 
+  React.useEffect(() => {
+    let token = localStorage.getItem('token');
+    if (!token) {
+      try {
+        const dtUser = JSON.parse(localStorage.getItem('dt_user') || '{}');
+        if (dtUser && dtUser.token) token = dtUser.token;
+      } catch (e) {}
+    }
+    if (!token) {
+      navigate('/login');
+    }
+  }, [navigate]);
+
   const handleLogout = () => {
-    navigate('/');
+    localStorage.removeItem('token');
+    localStorage.removeItem('dt_user');
+    navigate('/login');
   };
 
   const navItems = [

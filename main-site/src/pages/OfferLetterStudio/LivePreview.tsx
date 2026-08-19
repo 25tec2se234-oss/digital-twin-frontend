@@ -108,7 +108,7 @@ const LivePreview = ({ data }: { data: any }) => {
           <div style={{ marginTop: '20mm' }}>
             
             {/* 2. Meta row (Offer ID / Date Issued) */}
-            <div className="flex justify-between text-xs mb-10">
+            <div className="flex justify-between text-xs mb-10 avoid-break">
               <div>
                 <p className="uppercase tracking-[0.08em] mb-1 font-medium" style={{ color: theme.textMuted }}>Offer ID</p>
                 <p className="font-medium text-sm" style={{ color: theme.text }}>{offerId}</p>
@@ -156,7 +156,7 @@ const LivePreview = ({ data }: { data: any }) => {
             </div>
 
             {/* 4. Position Details + Compensation */}
-            <div className="grid grid-cols-2 gap-6 mb-12" style={{ pageBreakInside: 'avoid' }}>
+            <div className="grid grid-cols-2 gap-6 mb-12 avoid-break" style={{ pageBreakInside: 'avoid' }}>
               <div className="p-6 rounded-lg" style={{ border: `1px solid ${theme.hairline}` }}>
                 <h3 className="text-[10px] uppercase tracking-widest font-semibold mb-5" style={{ color: theme.textMuted }}>Position Details</h3>
                 <div className="space-y-4">
@@ -226,7 +226,7 @@ const LivePreview = ({ data }: { data: any }) => {
 
             {/* 5. Key Responsibilities */}
             {responsibilities?.length > 0 && (
-              <div className="mb-12" style={{ pageBreakInside: 'avoid' }}>
+              <div className="mb-12 avoid-break" style={{ pageBreakInside: 'avoid' }}>
                 <h3 className="text-[11px] uppercase tracking-widest font-semibold mb-5" style={{ color: theme.ink, fontFamily: "'Space Grotesk', sans-serif" }}>Key Responsibilities</h3>
                 <ul className="text-[13px] space-y-3">
                   {responsibilities.map((r: string, i: number) => (
@@ -246,7 +246,7 @@ const LivePreview = ({ data }: { data: any }) => {
                 <h3 className="text-[11px] uppercase tracking-widest font-semibold mb-6" style={{ color: theme.ink, fontFamily: "'Space Grotesk', sans-serif" }}>Terms & Conditions</h3>
                 <div className="space-y-8">
                   {enabledClauses.map((c: any) => (
-                    <div key={c.id} className="pl-4" style={{ borderLeft: `1px solid ${theme.hairline}`, pageBreakInside: 'avoid' }}>
+                    <div key={c.id} className="pl-4 avoid-break" style={{ borderLeft: `1px solid ${theme.hairline}`, pageBreakInside: 'avoid' }}>
                       <h4 className="text-[11px] uppercase tracking-[0.05em] font-medium mb-2" style={{ color: theme.text }}>{c.title}</h4>
                       <p className="text-[13px] leading-relaxed" style={{ color: theme.textMuted }}>{c.content}</p>
                     </div>
@@ -256,15 +256,15 @@ const LivePreview = ({ data }: { data: any }) => {
             )}
 
             {/* 7. Signature block and Footer wrapped to avoid page break */}
-            <div style={{ pageBreakInside: 'avoid' }}>
-              <div className="mt-16 flex justify-between pt-10">
-                 <div className="w-64 relative">
+            <div className="avoid-break" style={{ pageBreakInside: 'avoid' }}>
+              <div className="mt-16 flex justify-between items-end pt-10">
+                 <div className="w-56 relative">
                     {/* Seal */}
                     <div 
                       className="absolute left-10 -top-8 w-24 h-24 rounded-full flex items-center justify-center"
-                      style={{ border: `1px solid ${theme.gold}`, opacity: 0.12, zIndex: 1 }}
+                      style={{ border: `2px solid ${theme.gold}`, opacity: 0.45, zIndex: 0 }}
                     >
-                      <div className="w-20 h-20 rounded-full border border-dashed flex items-center justify-center text-[10px] uppercase tracking-widest text-center" style={{ borderColor: theme.gold, color: theme.gold }}>
+                      <div className="w-20 h-20 rounded-full border-2 border-dashed flex items-center justify-center text-[11px] font-bold uppercase tracking-widest text-center" style={{ borderColor: theme.gold, color: theme.gold }}>
                         DTV<br/>Seal
                       </div>
                     </div>
@@ -277,7 +277,16 @@ const LivePreview = ({ data }: { data: any }) => {
                       <p className="text-[10px] uppercase tracking-widest font-medium mt-1" style={{ color: theme.textMuted }}>Founder & CEO</p>
                     </div>
                  </div>
-                 <div className="w-64">
+
+                 {/* QR Code in the middle */}
+                 <div className="flex flex-col items-center justify-end pb-2">
+                    <p className="text-[9px] uppercase tracking-widest font-medium text-gray-400 mb-2">Scan to Verify</p>
+                    <div className="p-1.5 rounded-sm" style={{ backgroundColor: theme.paper, border: `1px solid ${theme.hairline}` }}>
+                      <QRCodeCanvas value={verifyUrl} size={64} level="M" fgColor={theme.ink} />
+                    </div>
+                 </div>
+
+                 <div className="w-56">
                     <div className="h-16 flex items-end pb-2"></div>
                     <div className="pt-3" style={{ borderTop: `1px dashed ${theme.hairline}` }}>
                       <p className="font-medium text-[13px]" style={{ color: theme.text }}>{candidate_details?.name || 'Candidate Name'}</p>
@@ -286,18 +295,7 @@ const LivePreview = ({ data }: { data: any }) => {
                  </div>
               </div>
 
-              {/* 8. Footer & 10. QR code */}
-              <div className="mt-20 pt-6 flex justify-between items-end" style={{ borderTop: `1px solid ${theme.hairline}` }}>
-                <div className="text-[9px] uppercase tracking-widest font-medium" style={{ color: theme.textMuted }}>
-                  <p className="mb-1">Offer ID: {offerId}</p>
-                  <p><a href="https://digitaltwinvrs.com" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>digitaltwinvrs.com</a></p>
-                </div>
-                <div>
-                  <div className="p-1.5 rounded-sm" style={{ backgroundColor: theme.paper, border: `1px solid ${theme.hairline}` }}>
-                    <QRCodeCanvas value={verifyUrl} size={48} level="M" fgColor={theme.ink} />
-                  </div>
-                </div>
-              </div>
+              <div className="mt-8 mb-4"></div>
             </div>
 
           </div>

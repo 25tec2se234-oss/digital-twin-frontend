@@ -57,12 +57,12 @@ const CandidatePortal = () => {
       setIsDownloading(true);
       await document.fonts.ready; // Wait for fonts to fully load
       const opt = {
-        margin:       [0.4, 0, 0.4, 0], // Top/Bottom margin to prevent touching edges
+        margin:       [10, 0, 10, 0], // Top/Bottom margin in mm
         filename:     `Offer_Letter_${offer.candidate_details?.name || 'Candidate'}.pdf`,
-        image:        { type: 'jpeg', quality: 1 },
-        html2canvas:  { scale: 3, useCORS: true, letterRendering: true, allowTaint: true },
-        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' },
-        pagebreak:    { mode: ['css', 'legacy'] }
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, useCORS: true, letterRendering: true, allowTaint: true },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak:    { mode: ['css', 'legacy'], avoid: '.avoid-break' }
       };
       await html2pdf().set(opt).from(previewRef.current).save();
     } catch (err) {
@@ -180,7 +180,7 @@ const CandidatePortal = () => {
     <div className="min-h-screen bg-[#0f1115] py-16 px-4 sm:px-6 lg:px-8 font-sans selection:bg-indigo-500/30">
       
       {/* Hidden PDF Container */}
-      <div className="absolute top-[-10000px] left-[-10000px] z-[-10] opacity-0 pointer-events-none">
+      <div className="absolute top-[-10000px] left-[-10000px] z-[-10] opacity-0 pointer-events-none" style={{ width: '210mm' }}>
         <div ref={previewRef}>
           <LivePreview data={offer} />
         </div>

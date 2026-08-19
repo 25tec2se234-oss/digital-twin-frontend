@@ -44,7 +44,8 @@ export default function SignIn({ onSignUpClick, onForgotPasswordClick, onSignInS
         }
       } else {
         // Standalone login - make actual API call!
-        const res = await fetch('/api/v1/auth/login', {
+        const apiUrl = import.meta.env.VITE_API_URL || 'https://digital-twin-verse-app.onrender.com';
+        const res = await fetch(`${apiUrl}/api/v1/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: email, password: password })

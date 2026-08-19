@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import ShaderBackground from '../components/ShaderBackground';
 import SignIn from '../components/SignIn';
 import SignUp from '../components/SignUp';
@@ -12,6 +12,8 @@ const Login: React.FC = () => {
   
   const [view, setView] = useState<'signin' | 'signup' | 'forgot'>(initialView);
   const [, setCurrentUser] = useState<User | null>(null);
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     const savedSession = localStorage.getItem('dtv_student_session');
@@ -32,13 +34,13 @@ const Login: React.FC = () => {
           <SignIn
             onSignUpClick={() => setView('signup')}
             onForgotPasswordClick={() => setView('forgot')}
-            onSignInSuccess={() => {}}
+            onSignInSuccess={() => navigate('/offer-letter-studio')}
           />
         )}
         {view === 'signup' && (
           <SignUp
             onSignInClick={() => setView('signin')}
-            onSignUpSuccess={() => {}}
+            onSignUpSuccess={() => navigate('/offer-letter-studio')}
           />
         )}
         {view === 'forgot' && (

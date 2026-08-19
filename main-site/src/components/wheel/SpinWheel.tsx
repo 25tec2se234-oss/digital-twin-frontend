@@ -16,7 +16,7 @@ import {
   type Reward,
   type Tier,
 } from "./rewards";
-import { checkUserLoggedIn } from "../../pages/WheelPage";
+import { checkUserLoggedIn } from "../../utils/auth";
 import {
   getWheelState,
   getRemainingSpins,

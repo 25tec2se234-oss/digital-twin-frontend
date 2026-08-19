@@ -297,9 +297,9 @@ const OfferEditor = () => {
       
       // Navigate back to dashboard after save
       navigate('/offer-letter-studio');
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving document: ", error);
-      alert("Failed to save offer letter. Check console for details.");
+      alert("Failed to save offer letter. Error: " + (error.response?.data?.error || error.message || JSON.stringify(error)));
     } finally {
       setIsSaving(false);
     }
@@ -319,9 +319,9 @@ const OfferEditor = () => {
       
       // Navigate back to dashboard after generate
       navigate('/offer-letter-studio');
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error generating document: ", error);
-      alert("Failed to generate offer letter.");
+      alert("Failed to generate offer letter. Error: " + (error.response?.data?.error || error.message || JSON.stringify(error)));
     } finally {
       setIsSaving(false);
     }

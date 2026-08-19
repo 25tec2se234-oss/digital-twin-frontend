@@ -1,10 +1,12 @@
 /// <reference types="vite/client" />
 import axios from 'axios';
 
+// Determine base URL dynamically based on environment
+const defaultBaseUrl = 'https://digital-twin-verse-app.onrender.com';
+
 // Create an Axios instance
 const api = axios.create({
-  // Use VITE_API_URL if defined, otherwise fallback to local backend on port 5000
-  baseURL: (import.meta.env.VITE_API_URL || 'http://localhost:3000') + '/api/offer-letters',
+  baseURL: (import.meta.env.VITE_API_URL || defaultBaseUrl) + '/api/offer-letters',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -12,7 +14,16 @@ const api = axios.create({
 
 // Request interceptor to attach auth token if needed
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  let token = localStorage.getItem('token');
+  if (!token) {
+    try {
+      const dtUser = JSON.parse(localStorage.getItem('dt_user') || '{}');
+      if (dtUser && dtUser.token) token = dtUser.token;
+    } catch (e) {
+      // ignore parse error
+    }
+  }
+  
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }

@@ -10,8 +10,8 @@ const App = () => {
   return (
     <HashRouter>
       <Routes>
-        {/* Redirect base URL to the studio */}
-        <Route path="/" element={<Navigate to="/offer-letter-studio" replace />} />
+        {/* Redirect base URL based on pathname */}
+        <Route path="/" element={<Navigate to={window.location.pathname.includes('login') ? '/login' : '/offer-letter-studio'} replace />} />
         
         {/* Auth Route */}
         <Route path="/login" element={<Login />} />
@@ -26,7 +26,7 @@ const App = () => {
         <Route path="/offer/action/:token" element={<CandidatePortal />} />
         
         {/* Catch-all to prevent 404s */}
-        <Route path="*" element={<Navigate to="/offer-letter-studio" replace />} />
+        <Route path="*" element={<Navigate to={window.location.pathname.includes('login') ? '/login' : '/offer-letter-studio'} replace />} />
       </Routes>
     </HashRouter>
   );

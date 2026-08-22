@@ -78,9 +78,11 @@ export default function ShaderBackground() {
           
           // Combine
           vec3 color = bg;
-          // Subtly mix violet and orange in the grid lines for a warmer, sophisticated base
-          vec3 gridColor = mix(violet, orange, sin(u_time * 0.5 + gridUV.x * 2.0) * 0.5 + 0.5);
-          color = mix(color, gridColor, g * 0.25);
+          
+          // Light orange for moving lines
+          vec3 lightOrange = vec3(1.0, 0.7, 0.3);
+          vec3 gridColor = mix(orange, lightOrange, sin(u_time * 0.5 + gridUV.x * 2.0) * 0.5 + 0.5);
+          color = mix(color, gridColor, g * 0.7); // Increased from 0.25 to 0.7 for better visibility
           
           // Particles glow with a mix of gold and brand orange
           vec3 particleGlow = mix(gold, orange, sin(u_time * 0.8) * 0.5 + 0.5);

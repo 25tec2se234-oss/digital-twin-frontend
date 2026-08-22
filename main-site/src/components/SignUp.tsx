@@ -280,11 +280,11 @@ export default function SignUp({ onSignInClick, onSignUpSuccess }: SignUpProps) 
                 className={`glass-input w-full rounded-lg py-2.5 pl-10 pr-8 bg-black/65 border border-white/10 focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37] transition-all text-xs outline-none appearance-none cursor-pointer ${role === '' ? 'text-[#b4acc0]' : 'text-white'
                   }`}
               >
-                <option value="" disabled className="bg-[#191c1e] text-[#b4acc0]">
+                <option value="" disabled style={{ backgroundColor: '#191c1e', color: '#b4acc0' }}>
                   Select your role
                 </option>
                 {ROLES.map((roleOpt) => (
-                  <option key={roleOpt} value={roleOpt} className="bg-[#191c1e] text-white">
+                  <option key={roleOpt} value={roleOpt} style={{ backgroundColor: '#191c1e', color: '#ffffff' }}>
                     {roleOpt}
                   </option>
                 ))}

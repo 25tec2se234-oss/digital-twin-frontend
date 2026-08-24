@@ -14,6 +14,8 @@ export default function ForgotPassword({ onSignInClick }: ForgotPasswordProps) {
   const [newPassword, setNewPassword] = useState('');
   const [resetError, setResetError] = useState('');
   const [isResetting, setIsResetting] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,6 +94,40 @@ export default function ForgotPassword({ onSignInClick }: ForgotPasswordProps) {
     }
   };
 
+  const handleResendOTP = async () => {
+    setResetError('');
+    setSuccessMessage('');
+    setIsResending(true);
+    
+    try {
+      const isIframe = window.parent && window.parent !== window && (window.parent as any).handleReactForgotPassword;
+      if (isIframe) {
+        const res = await (window.parent as any).handleReactForgotPassword(email);
+        if (res && res.success) {
+          setSuccessMessage('New OTP sent successfully');
+        } else {
+          setResetError(res?.error || 'Failed to resend OTP.');
+        }
+      } else {
+        const res = await fetch('/api/v1/auth/forgot-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email })
+        });
+        if (res.ok) {
+          setSuccessMessage('New OTP sent successfully');
+        } else {
+          const data = await res.json();
+          throw new Error(data.error || 'Failed to resend OTP.');
+        }
+      }
+    } catch (err: any) {
+      setResetError(err.message || 'An error occurred.');
+    } finally {
+      setIsResending(false);
+    }
+  };
+
   return (
     <div className="w-full max-w-md px-6 py-12 relative z-10 flex flex-col items-center animate-[fadeInScale_0.6s_ease-out_forwards]">
       {/* Logo Area */}
@@ -159,6 +195,11 @@ export default function ForgotPassword({ onSignInClick }: ForgotPasswordProps) {
                 {resetError}
               </div>
             )}
+            {successMessage && (
+              <div className="bg-green-500/10 border border-green-500/30 text-green-400 text-xs rounded-lg p-3 text-center mb-4">
+                {successMessage}
+              </div>
+            )}
             <input
               id="reset-otp"
               required
@@ -184,6 +225,14 @@ export default function ForgotPassword({ onSignInClick }: ForgotPasswordProps) {
               className="w-full py-3 px-4 bg-gradient-to-r from-[#d4af37] to-[#f3e5ab] hover:from-[#c5a030] hover:to-[#e4d59b] text-black font-bold rounded-lg transition-all transform hover:scale-[1.02] active:scale-95 shadow-[0_0_20px_rgba(212,175,55,0.3)] mb-4 cursor-pointer"
             >
               {isResetting ? 'Verifying...' : 'Verify & Reset Password'}
+            </button>
+            <button
+              type="button"
+              onClick={handleResendOTP}
+              disabled={isResending}
+              className="w-full py-2 px-4 border border-[#d4af37]/30 text-[#d4af37] font-bold rounded-lg transition-all hover:bg-[#d4af37]/10 mb-4 cursor-pointer"
+            >
+              {isResending ? 'Sending...' : 'Resend OTP'}
             </button>
             <button
               type="button"

@@ -65,7 +65,7 @@
             demoMode: false,
             formspreeId: 'mvzdpwyv',
             siteUrl: 'https://digitaltwinvrs.com/',
-            shareText: 'Check out Digital Twin Verse by DTV Family — AI career simulation platform!'
+            shareText: 'Check out Digital Twin Verse by Eco-Novators — AI career simulation platform!'
         };
 
         /* ═══════════════════════════════════════════════════════════════
@@ -160,11 +160,6 @@
                         var u = JSON.parse(dtUser);
                         if (u && Object.keys(u).length > 0) {
                             APP_DATA.userData = Object.assign(APP_DATA.userData || {}, u);
-                            // Infer loggedIn state if token is present (Fixes React app login missing loggedIn flag)
-                            if (u.token) {
-                                APP_DATA.userData.loggedIn = true;
-                                APP_DATA.userData.loggedInAt = APP_DATA.userData.loggedInAt || new Date().toISOString();
-                            }
                         }
                     } catch(ue) {}
                 }
@@ -179,13 +174,6 @@
                         if (json && json.data && Object.keys(json.data).length > 0) {
                             Object.assign(APP_DATA, json.data);
                             migrateData();
-                            if (APP_DATA.streak && typeof APP_DATA.streak.current !== 'undefined') {
-                                localStorage.setItem('dtv_streak', APP_DATA.streak.current);
-                                localStorage.setItem('dtv_best_streak', APP_DATA.streak.best);
-                                if (APP_DATA.streak.lastActive) {
-                                    localStorage.setItem('dtv_last_active', APP_DATA.streak.lastActive);
-                                }
-                            }
                             if (typeof window.renderAll === 'function') window.renderAll();
                             if (typeof updateSubscriptionTracker === 'function') updateSubscriptionTracker();
                         }
@@ -569,13 +557,39 @@
             return escaped;
         }
 
-        /* ═══ CAREER DATA — 24 Careers ═══════════════════════════════ */
-        
-/* CAREERS data moved to js/data/careers.js */
+        var CAREERS = [];
+        var careersLoadingPromise = null;
+        function loadCareersData() {
+            if (CAREERS.length > 0) {
+                return Promise.resolve(CAREERS);
+            }
+            if (careersLoadingPromise) {
+                return careersLoadingPromise;
+            }
+            careersLoadingPromise = fetch('/js/data/careers.json')
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    CAREERS = data;
+                    return CAREERS;
+                })
+                .catch(function(err) {
+                    console.error("Failed to load careers data:", err);
+                    return [];
+                });
+            return careersLoadingPromise;
+        }
 
 
         /* ═══ PREDICTION SCORE ENGINE ════════════════════════════════ */
         function calcPredictionScore(careerId, interests) {
+            if (CAREERS.length === 0) {
+                loadCareersData();
+                return {
+                    score: 70,
+                    match: 'Moderate',
+                    badges: []
+                };
+            }
             var c = CAREERS.find(function(x) {
                 return x.id === careerId;
             });
@@ -700,7 +714,6 @@
                     '</div>';
                 detail.classList.add('open');
 
-
                 cards.forEach(function(c) {
                     var selected = c === card;
                     c.classList.toggle('selected', selected);
@@ -738,16 +751,19 @@
         var currentFilteredList = [];
 
 
-        
-var currentSalaryFilter = 'all';
-var currentRemoteFilter = 'all';
-
-function renderCareers(filter) {
+        function renderCareers(filter) {
             if (filter !== undefined && filter !== null) {
                 currentCategory = filter;
             }
             var grid = document.getElementById('career-grid');
             if (!grid) return;
+            if (CAREERS.length === 0) {
+                grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 3rem; color: var(--mu);">⌛ Loading 1800+ career paths...</div>';
+                loadCareersData().then(function() {
+                    renderCareers();
+                });
+                return;
+            }
             var list = CAREERS.filter(function(c) {
                 var cat = (currentCategory || 'all').toLowerCase().trim();
                 var cstream = (c.stream || '').toLowerCase().trim();
@@ -821,13 +837,6 @@ function renderCareers(filter) {
             var dispDemand = c.futureDemand || c.demand || 'High';
             var dispSalary = c.salary || 'Competitive';
             var dispGrowth = c.growthRate || '+25% Growth';
-            
-            var matchPillHtml = '';
-            if (window.APP_DATA && window.APP_DATA.studentProfile && window.APP_DATA.studentProfile.type) {
-                var score = calculateStudentMatchScore(c, window.APP_DATA.studentProfile);
-                matchPillHtml = '<span style="font-size:0.72rem;color:#f59e0b;background:rgba(245, 158, 11, 0.15);padding:2px 6px;border-radius:4px;margin-left:6px;font-weight:bold;border:1px solid rgba(245, 158, 11, 0.25);">✨ ' + score + '% Match</span>';
-            }
-
             return '<div class="ccard" id="cc-' + c.id + '" onclick="openCareer(\'' + c.id + '\')" role="button" tabindex="0" aria-label="Explore ' + c.title + '">' +
                 '<div class="ccard-top-row">' +
                     '<div class="ccard-ic" aria-hidden="true">' + c.icon + '</div>' +
@@ -835,9 +844,9 @@ function renderCareers(filter) {
                 '</div>' +
                 '<h3 class="ccard-title">' + c.title + '</h3>' +
                 '<p class="ccard-desc">' + c.desc + '</p>' +
-                '<div class="ccard-salary">' + dispSalary + matchPillHtml + '</div>' +
+                '<div class="ccard-salary">' + dispSalary + ' <span style="font-size:0.75rem;color:#4ade80;background:rgba(74,222,128,0.15);padding:2px 6px;border-radius:4px;margin-left:6px;">' + dispGrowth + '</span></div>' +
                 '<div class="demand-bar"><div class="demand-fill" style="width:' + dispDp + '%"></div></div>' +
-                '<div class="demand-lbl">Demand: ' + dispDemand + ' <span style="color:#4ade80;float:right;">' + dispGrowth + '</span></div>' +
+                '<div class="demand-lbl">Demand: ' + dispDemand + '</div>' +
                 '<div class="ccard-act"><button class="btn-explore" tabindex="-1">Explore →</button></div>' +
                 '</div>';
         }
@@ -922,6 +931,10 @@ function renderCareers(filter) {
 
         /* ═══ OVERALL PROGRESS ═══════════════════════════════════════ */
         function updateOverallProgress() {
+            if (CAREERS.length === 0) {
+                loadCareersData().then(updateOverallProgress);
+                return;
+            }
             var data = getLSD();
             var careersExplored = Object.keys(data).length;
             var totalSkills = 0,
@@ -949,6 +962,12 @@ function renderCareers(filter) {
 
         function openCareerByTitle(title) {
             var cleanTitle = title.trim().toLowerCase();
+            if (CAREERS.length === 0) {
+                loadCareersData().then(function() {
+                    openCareerByTitle(title);
+                });
+                return;
+            }
             var matched = CAREERS.find(function(c) {
                 return c.title.toLowerCase() === cleanTitle || c.title.toLowerCase().includes(cleanTitle) || cleanTitle.includes(c.title.toLowerCase());
             });
@@ -961,9 +980,10 @@ function renderCareers(filter) {
 
         /* ═══ CAREER DETAIL WITH PREDICTION + SUGGESTIONS ═══════════ */
         function openCareer(id) {
-            if (!isLoggedIn()) {
-                showToast('🔒', 'Please sign in to access Career Explorer & details.');
-                openLoginGate();
+            if (CAREERS.length === 0) {
+                loadCareersData().then(function() {
+                    openCareer(id);
+                });
                 return;
             }
             var c = CAREERS.find(function(x) {
@@ -1091,6 +1111,7 @@ function renderCareers(filter) {
                 '</div></div>' +
                 '<div style="display:flex;flex-direction:column;gap:.6rem;align-items:flex-end;">' +
                 '<button class="cd-close" onclick="closeCareer()">✕ Close</button>' +
+                '<button class="dl-report-btn" id="dl-btn-' + id + '" onclick="downloadReport(\'' + id + '\')"><span class="dl-icon">⬇ Download Report</span><span class="spin"></span></button>' +
                 '</div></div>'
                 // — Prediction Score card —
                 +
@@ -1104,9 +1125,7 @@ function renderCareers(filter) {
                 '<p style="margin-bottom:0.4rem;">' + pred.match + ' based on market demand, your skill progress, and profile alignment.</p>' +
                 '<p style="font-size:0.85rem; color:var(--mu); margin-bottom:0.4rem;"><strong>⚡ AI Impact:</strong> ' + safeAiImpact + ' | <strong>🛡 Automation Risk:</strong> ' + safeAutoRisk + '</p>' +
                 '<p style="font-size:0.85rem; color:var(--mu); margin-bottom:0.6rem;"><strong>🚀 2035 Outlook:</strong> ' + safeOutlook + '</p>' +
-                '<div class="pred-badges">' + predBadgesHtml + '</div>' +
-                '<button class="tool-btn" style="margin-top: 1rem; background: linear-gradient(90deg, #a855f7, #6366f1) !important; color: white !important; width: 100%; border: none; font-weight: bold; cursor: pointer; padding: 0.75rem; border-radius: 6px; font-size:0.85rem;" onclick="openCareerSimulator(\'' + id + '\')">🔮 Simulate My Career Path (Interactive Roadmapping)</button>' +
-                '</div></div>'
+                '<div class="pred-badges">' + predBadgesHtml + '</div></div></div>'
                 // — Progress bar —
                 +
                 '<div class="progress-section">' +
@@ -1164,15 +1183,7 @@ function renderCareers(filter) {
                 '</div></div>' +
                 '</div>';
 
-                        detail.classList.add('open');
-
-            var _cg = document.getElementById('career-grid');
-            if (_cg) _cg.style.display = 'none';
-            var _dc = document.querySelector('.dash-controls');
-            if (_dc) _dc.style.display = 'none';
-            var _dov = document.getElementById('dash-overall');
-            if (_dov) _dov.style.display = 'none';
-
+            detail.classList.add('open');
 
             var notesInput = document.getElementById('notes-' + id);
             if (notesInput) notesInput.value = saved.notes || '';
@@ -1213,18 +1224,7 @@ function renderCareers(filter) {
             document.querySelectorAll('.ccard').forEach(function(el) {
                 el.classList.remove('selected');
             });
-            
-            var _cg = document.getElementById('career-grid');
-            if (_cg) _cg.style.display = '';
-            var _dc = document.querySelector('.dash-controls');
-            if (_dc) _dc.style.display = '';
-            var _dov = document.getElementById('dash-overall');
-            if (_dov) _dov.style.display = '';
-            
-            var _db = document.getElementById('dashboard');
-            if (_db) _db.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
-
 
         function togSkill(careerId, skillKey, el) {
             var data = getLSD();
@@ -1348,7 +1348,7 @@ function renderCareers(filter) {
                     doc.text('Digital Twin Verse', ml, y);
                     doc.setFontSize(9);
                     doc.setTextColor(194, 208, 224);
-                    doc.text('Career Report  |  DTV Family  |  https://digitaltwinvrs.com/', ml, y + 7);
+                    doc.text('Career Report  |  Eco-Novators  |  https://digitaltwinvrs.com/', ml, y + 7);
                     doc.setFontSize(8);
                     doc.setTextColor(122, 143, 168);
                     doc.text('Generated: ' + dateStr, pw - mr, y + 7, {
@@ -1502,7 +1502,7 @@ function renderCareers(filter) {
                     doc.setFontSize(7);
                     doc.setFont('helvetica', 'normal');
                     doc.setTextColor(122, 143, 168);
-                    doc.text('© 2026 DTV Family · Digital Twin Verse · digitaltwinverse@gmail.com · +91 75201 19837 · https://digitaltwinvrs.com/', pw / 2, 289, {
+                    doc.text('© 2026 Eco-Novators · Digital Twin Verse · digitaltwinverse@gmail.com · +91 75201 19837 · https://digitaltwinvrs.com/', pw / 2, 289, {
                         align: 'center'
                     });
 
@@ -1515,7 +1515,7 @@ function renderCareers(filter) {
                 // Fallback: plain text download
                 var lines = [
                     'DIGITAL TWIN VERSE — CAREER REPORT',
-                    'DTV Family | https://digitaltwinvrs.com/',
+                    'Eco-Novators | https://digitaltwinvrs.com/',
                     'Generated: ' + dateStr,
                     '═══════════════════════════════════════════',
                     '',
@@ -1560,7 +1560,7 @@ function renderCareers(filter) {
                 }
                 lines.push('');
                 lines.push('───────────────────────────────────────────');
-                lines.push('© 2026 DTV Family | Digital Twin Verse | digitaltwinverse@gmail.com | +91 75201 19837 | https://digitaltwinvrs.com/');
+                lines.push('© 2026 Eco-Novators | Digital Twin Verse | digitaltwinverse@gmail.com | +91 75201 19837 | https://digitaltwinvrs.com/');
 
                 var blob = new Blob([lines.join('\n')], {
                     type: 'text/plain'
@@ -1933,9 +1933,8 @@ function renderCareers(filter) {
             var list = APP_DATA.studentTools.items.achieve;
             if (!list || index < 0 || index >= list.length) return;
             var item = list.splice(index, 1)[0];
-            const text = typeof item === 'string' ? item : item.text || '';
             APP_DATA.studentTools.items.achieved.unshift({
-                text: text,
+                text: item,
                 at: new Date().toISOString()
             });
             syncData();
@@ -1944,10 +1943,6 @@ function renderCareers(filter) {
             updateAccuracy();
             renderNextStep();
             refreshWeeklySummary();
-
-            // Premium Upgrade: Confetti celebration and XP points!
-            if (typeof triggerConfetti === 'function') triggerConfetti();
-            if (typeof awardXpForGoal === 'function') awardXpForGoal(text);
         }
 
         function renderToolList(key) {
@@ -2573,11 +2568,6 @@ function renderCareers(filter) {
         }
 
         async function downloadStudentPlan() {
-            if (!isLoggedIn()) {
-                showToast('🔒', 'Please sign in to download your custom study plan.');
-                openLoginPage();
-                return;
-            }
             ensureStudentDefaults();
             var jsPDFLib = await ensureJsPDFLoaded().catch(function() {
                 return null;
@@ -3020,11 +3010,6 @@ function renderCareers(filter) {
         }
 
         function toggleDashboard(forceOpen) {
-            if (!isLoggedIn()) {
-                showToast('🔒', 'Please sign in to access your Personalised Dashboard.');
-                openLoginPage();
-                return;
-            }
             var panel = document.getElementById('dashboard-panel');
             if (!panel) return;
             var isOpen = panel.classList.contains('open');
@@ -3040,14 +3025,8 @@ function renderCareers(filter) {
                 }
             }
         }
-        window.toggleDashboard = toggleDashboard;
 
         function openDashboardShortcut() {
-            if (!isLoggedIn()) {
-                showToast('🔒', 'Please sign in to access your Personalised Dashboard.');
-                openLoginPage();
-                return;
-            }
             setDashboardOpen(true, true);
         }
 
@@ -3088,7 +3067,6 @@ function renderCareers(filter) {
                 }
             }
         }
-        window.toggleCareerExplorer = toggleCareerExplorer;
 
         function initCareerExplorerToggle() {
             setCareerExplorerOpen(false, false);
@@ -3255,11 +3233,6 @@ function renderCareers(filter) {
 
         /* ═══ CHAT FUNCTIONS ═════════════════════════════════════════ */
         function togChat() {
-            if (!isLoggedIn()) {
-                showToast('🔒', 'Please sign in to access AI Mentor & Advisor.');
-                openLoginPage();
-                return;
-            }
             chatOpen = !chatOpen;
             var panel = document.getElementById('chat-panel');
             panel.classList.toggle('open', chatOpen);
@@ -3276,7 +3249,12 @@ function renderCareers(filter) {
             var msgs = document.getElementById('cp-msgs');
             var div = document.createElement('div');
             div.className = 'msg bot';
-            div.innerHTML = DOMPurify.sanitize(formatBotMessage(text));
+            var cleanHtml = formatBotMessage(text);
+            if (window.DOMPurify) {
+                div.innerHTML = window.DOMPurify.sanitize(cleanHtml);
+            } else {
+                div.innerHTML = cleanHtml;
+            }
             msgs.appendChild(div);
             
             // Premium Upgrade: Apply hacker decode effect
@@ -3307,13 +3285,12 @@ function renderCareers(filter) {
             var div = document.createElement('div');
             div.className = 'msg typing';
             div.id = 'typing-ind';
-            div.innerHTML = DOMPurify.sanitize('<div class="dtv-thinking-nodes" style="display:flex; align-items:center; gap:6px;">' +
-'<div class="dtv-path-node" style="position:relative; animation-delay:0s;"></div>' +
-'<div class="dtv-path-node" style="position:relative; animation-delay:0.2s;"></div>' +
-'<div class="dtv-path-node" style="position:relative; animation-delay:0.4s;"></div>' +
-'<div class="dtv-path-node" style="position:relative; animation-delay:0.6s;"></div>' +
-'<div class="dtv-path-node" style="position:relative; animation-delay:0.8s;"></div>' +
-'<span class="decrypt-text" style="margin-left:12px; font-size:0.75rem; color:var(--dtv-orange-500); letter-spacing:2px; font-family:monospace; white-space:nowrap;">SYNTHESIZING...</span></div>', { ADD_ATTR: ['style'] });
+            var typingHtml = '<div class="typing-dots" style="display:flex; align-items:center;"><span class="dot"></span><span class="dot"></span><span class="dot"></span> <span class="decrypt-text" style="margin-left:12px; font-size:0.75rem; color:var(--cyan); letter-spacing:2px; font-family:monospace; white-space:nowrap;">DECRYPTING_</span></div>';
+            if (window.DOMPurify) {
+                div.innerHTML = window.DOMPurify.sanitize(typingHtml, { ADD_ATTR: ['style'] });
+            } else {
+                div.innerHTML = typingHtml;
+            }
             msgs.appendChild(div);
             msgs.scrollTop = msgs.scrollHeight;
             
@@ -3658,10 +3635,20 @@ function renderCareers(filter) {
 
         /* ═══ PAGES ══════════════════════════════════════════════════ */
         function goHome() {
+            var path = window.location.pathname;
+            if (path !== '/' && path !== '/index.html' && path !== '/index') {
+                if (typeof window.navigateToPage === 'function') {
+                    window.navigateToPage('/index.html');
+                } else {
+                    window.location.href = '/index.html';
+                }
+                return;
+            }
             document.querySelectorAll('.page').forEach(function(p) {
                 p.classList.remove('active');
             });
-            document.getElementById('page-main').classList.add('active');
+            var main = document.getElementById('page-main');
+            if (main) main.classList.add('active');
             window.scrollTo({
                 top: 0,
                 behavior: 'smooth'
@@ -4116,7 +4103,6 @@ function renderCareers(filter) {
                 }
             });
         }
-        window.requirePremiumFrontend = requirePremiumFrontend;
 
         function isLoggedIn() {
             if (!APP_DATA.userData || !APP_DATA.userData.loggedIn) return false;
@@ -4130,8 +4116,6 @@ function renderCareers(filter) {
                 
                 if (!rememberMe && (now - loginTime > hours48)) {
                     APP_DATA.userData.token = null;
-                    localStorage.removeItem('dt_user');
-                    sessionStorage.removeItem('dt_appdata_v3');
                     setLoggedIn(false);
                     window.trackAnalyticsEvent('Session Expiry');
                     showToast('🔒', 'Session Expired. Please login again to continue.');
@@ -4147,6 +4131,27 @@ function renderCareers(filter) {
             var email = (APP_DATA.userData && APP_DATA.userData.email) ? APP_DATA.userData.email.trim() : '';
             if (email) return email.charAt(0).toUpperCase();
             return 'DT';
+        }
+
+        var domPurifyLoadPromise = null;
+        function ensureDOMPurifyLoaded() {
+            if (window.DOMPurify) return Promise.resolve(window.DOMPurify);
+            if (!domPurifyLoadPromise) {
+                domPurifyLoadPromise = new Promise(function(resolve, reject) {
+                    var script = document.createElement('script');
+                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js';
+                    script.async = true;
+                    script.onload = function() {
+                        if (window.DOMPurify) resolve(window.DOMPurify);
+                        else reject(new Error('DOMPurify failed to initialize'));
+                    };
+                    script.onerror = function() {
+                        reject(new Error('DOMPurify load failed'));
+                    };
+                    document.head.appendChild(script);
+                });
+            }
+            return domPurifyLoadPromise;
         }
 
         var jsPdfLoadPromise = null;
@@ -4289,12 +4294,6 @@ function renderCareers(filter) {
             if (auth) auth.classList.remove('active');
             var signup = document.getElementById('page-signup');
             if (signup) signup.classList.remove('active');
-            var otp = document.getElementById('page-otp');
-            if (otp) otp.classList.remove('active');
-            var fp = document.getElementById('page-forgot-pw');
-            if (fp) fp.classList.remove('active');
-            var rp = document.getElementById('page-reset-pw');
-            if (rp) rp.classList.remove('active');
             goHome();
         }
 
@@ -4430,16 +4429,23 @@ function renderCareers(filter) {
         };
 
         function openPricingPage() {
-            var modal = document.getElementById('pricing-modal');
-            if (modal) {
-                modal.style.display = 'flex';
+            if (typeof window.navigateToPage === 'function') {
+                window.navigateToPage('/pricing.html');
+            } else {
+                window.location.href = '/pricing.html';
             }
         }
 
         function closePricingPage() {
-            var modal = document.getElementById('pricing-modal');
-            if (modal) {
-                modal.style.display = 'none';
+            if (window.location.pathname === '/pricing.html' || window.location.pathname === '/pricing') {
+                if (typeof window.navigateToPage === 'function') {
+                    window.navigateToPage('/index.html');
+                } else {
+                    window.location.href = '/index.html';
+                }
+            } else {
+                var modal = document.getElementById('pricing-modal');
+                if (modal) modal.style.display = 'none';
             }
         }
 
@@ -4464,9 +4470,8 @@ function renderCareers(filter) {
             
             if (!isLoggedIn()) {
                 window.trackAnalyticsEvent('Premium Gate Triggered', { planId: planId });
-                sessionStorage.setItem('pending_payment_plan', planId);
                 window.pendingAuthAction = function() { initiatePayment(planId); };
-                openLoginGate();
+                openPremiumAuthModal();
                 return;
             }
 
@@ -4546,33 +4551,21 @@ function renderCareers(filter) {
                 headers: headers,
                 body: JSON.stringify({ plan: planId })
             })
-            .then(res => {
-                if (res.status === 401) {
-                    if (APP_DATA && APP_DATA.userData) {
-                        APP_DATA.userData.token = null;
-                    }
-                    localStorage.removeItem('dt_user');
-                    sessionStorage.removeItem('dt_appdata_v3');
-                    if(typeof setLoggedIn === 'function') setLoggedIn(false);
-                    if(typeof showToast === 'function') showToast('❌', 'Please sign in to continue.');
-                    setTimeout(() => window.location.href = '/login.html', 1500);
-                    throw new Error('Unauthorized');
-                }
-                if (!res.ok) {
-                    throw new Error('Server returned ' + res.status);
-                }
-                return res.json();
-            })
+            .then(res => res.json())
             .then(data => {
                 btnElem.disabled = false;
                 btnElem.innerHTML = originalText;
                 
                 if (!data.success || !data.order_id) {
-                    if(typeof showToast === 'function') {
-                        showToast('⚠️', 'Payment system is currently initializing. Please try again in a moment.');
-                    } else {
-                        alert('Payment system is currently initializing. Please try again in a moment.');
-                    }
+                    // Fallback to Razorpay Hosted Payment Page if backend keys are missing/invalid
+                    var formContainer = btnElem.parentNode;
+                    btnElem.style.display = 'none';
+                    formContainer.innerHTML = `
+                        <p style="color:#fca5a5;font-size:0.95rem;margin-bottom:15px;font-weight:600;">Standard checkout unavailable (check backend keys). Secure fallback activated.</p>
+                        <a href="https://pages.razorpay.com/${fallbackLinkId}/view" target="_blank" style="display:block; width: 100%; text-decoration:none; background: linear-gradient(135deg, #10b981, #059669); color: #fff; border: none; padding: 1.2rem; border-radius: 12px; font-size: 1.2rem; font-weight: 700; cursor: pointer; box-shadow: 0 10px 25px rgba(16, 185, 129, 0.4); text-align:center;">
+                            Proceed to Razorpay
+                        </a>
+                    `;
                     return;
                 }
 
@@ -4587,28 +4580,22 @@ function renderCareers(filter) {
                         verifyNativePayment(response.razorpay_payment_id, response.razorpay_order_id, response.razorpay_signature);
                     },
                     "prefill": {
-                        "name": APP_DATA.userData ? APP_DATA.userData.name : "",
-                        "email": APP_DATA.userData ? APP_DATA.userData.email : "",
-                        "contact": APP_DATA.userData ? APP_DATA.userData.phone : ""
+                        "name": APP_DATA.userData.name || "",
+                        "email": APP_DATA.userData.email || "",
+                        "contact": APP_DATA.userData.phone || ""
                     },
                     "theme": { "color": "#2a7de1" }
                 };
                 var rzp1 = new Razorpay(options);
                 rzp1.on('payment.failed', function (response){
-                    if(typeof showToast === 'function') showToast('⚠️', 'Payment failed. ' + response.error.description);
+                    showToast('⚠️', 'Payment failed. ' + response.error.description);
                 });
                 rzp1.open();
             })
             .catch(err => {
-                if (err.message === 'Unauthorized') return; // Do not fallback, wait for login redirect
-                
                 btnElem.disabled = false;
                 btnElem.innerHTML = originalText;
-                if(typeof showToast === 'function') {
-                    showToast('⏳', 'Secure server is waking up. Please click Subscribe again in 10 seconds.');
-                } else {
-                    alert('Secure server is waking up. Please click Subscribe again in 10 seconds.');
-                }
+                window.location.href = 'https://pages.razorpay.com/' + fallbackLinkId + '/view';
             });
         }
 
@@ -4728,66 +4715,24 @@ function renderCareers(filter) {
         }
 
         function openSignupPage() {
-            var auth = document.getElementById('page-auth');
-            if (auth) auth.classList.remove('active');
-            var signup = document.getElementById('page-signup');
-            if (signup) signup.classList.add('active');
-            var otp = document.getElementById('page-otp');
-            if (otp) otp.classList.remove('active');
-            
-            var fp = document.getElementById('page-forgot-pw');
-            if (fp) fp.classList.remove('active');
-            var rp = document.getElementById('page-reset-pw');
-            if (rp) rp.classList.remove('active');
-            
-            var name = document.getElementById('su-n');
-            if (name) {
-                setTimeout(function() {
-                    name.focus();
-                }, 50);
-            }
+            window.location.href = '/login.html?view=signup';
         }
 
         function openLoginPage() {
-            var auth = document.getElementById('page-auth');
-            if (auth) auth.classList.add('active');
-            var signup = document.getElementById('page-signup');
-            if (signup) signup.classList.remove('active');
-            var otp = document.getElementById('page-otp');
-            if (otp) otp.classList.remove('active');
-            
-            var fp = document.getElementById('page-forgot-pw');
-            if (fp) fp.classList.remove('active');
-            var rp = document.getElementById('page-reset-pw');
-            if (rp) rp.classList.remove('active');
+            window.location.href = '/login.html?view=signin';
         }
 
         function openForgotPasswordPage() {
-            var auth = document.getElementById('page-auth');
-            if (auth) auth.classList.remove('active');
-            var signup = document.getElementById('page-signup');
-            if (signup) signup.classList.remove('active');
-            var fp = document.getElementById('page-forgot-pw');
-            if (fp) fp.classList.add('active');
-            var rp = document.getElementById('page-reset-pw');
-            if (rp) rp.classList.remove('active');
+            window.location.href = '/login.html?view=forgot';
         }
 
         function openResetPasswordPage() {
-            var auth = document.getElementById('page-auth');
-            if (auth) auth.classList.remove('active');
-            var signup = document.getElementById('page-signup');
-            if (signup) signup.classList.remove('active');
-            var fp = document.getElementById('page-forgot-pw');
-            if (fp) fp.classList.remove('active');
-            var rp = document.getElementById('page-reset-pw');
-            if (rp) rp.classList.add('active');
+            window.location.href = '/login.html?view=signin';
         }
 
         function openLoginGate() {
-            var mob = document.getElementById('mob');
-            if (mob) mob.classList.remove('active');
-            window.location.href = '/login.html';
+            closeMod();
+            window.location.href = '/login.html?view=signin';
         }
 
         async function doLogout() {
@@ -4799,8 +4744,6 @@ function renderCareers(filter) {
                 console.error(e);
             }
             APP_DATA.userData.token = null;
-            localStorage.removeItem('dt_user');
-            sessionStorage.removeItem('dt_appdata_v3');
             setLoggedIn(false);
             loginGateActive = false;
             closeMod();
@@ -4850,7 +4793,6 @@ function renderCareers(filter) {
                                 APP_DATA.userData.name = rd.user.name || APP_DATA.userData.name;
                                 APP_DATA.userData.email = rd.user.email || APP_DATA.userData.email;
                                 APP_DATA.userData.role = rd.user.role || APP_DATA.userData.role;
-                                APP_DATA.userData.emailVerified = rd.user.emailVerified !== undefined ? rd.user.emailVerified : APP_DATA.userData.emailVerified;
                                 APP_DATA.userData.linkCode = rd.user.linkCode || null;
                                 APP_DATA.userData.trialExpiresAt = rd.user.trialExpiresAt || APP_DATA.userData.trialExpiresAt;
                                 APP_DATA.userData.subscriptionExpiresAt = rd.user.subscriptionExpiresAt || APP_DATA.userData.subscriptionExpiresAt;
@@ -4877,8 +4819,6 @@ function renderCareers(filter) {
                         openOTPModal();
                         return;
                     }
-                    var otpPage = document.getElementById('page-otp');
-                    if (otpPage) otpPage.classList.remove('active');
                     unlockSite();
                     return;
                 }
@@ -4920,7 +4860,15 @@ function renderCareers(filter) {
             btn.disabled = true;
             
             try {
-                // Send to Formspree first to ensure we get the email even if backend fails
+                var res = await fetch('/api/v1/auth/signup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email, password: pass, name: name })
+                });
+                var data = await res.json();
+                if (!res.ok) throw new Error(data.error || data.message || 'Signup failed');
+                
+                // Formspree submission silently fallback
                 fetch('https://formspree.io/f/' + CFG.formspreeId, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
@@ -4930,14 +4878,6 @@ function renderCareers(filter) {
                         Role: APP_DATA.userData.role, City: APP_DATA.userData.city
                     })
                 }).catch(function(){});
-
-                var res = await fetch('/api/v1/auth/signup', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: email, password: pass, name: name })
-                });
-                var data = await res.json();
-                if (!res.ok) throw new Error(data.error || data.message || 'Signup failed');
                 
                 APP_DATA.userData.id = data.user.id;
                 APP_DATA.userData.token = data.accessToken;
@@ -5108,12 +5048,6 @@ function renderCareers(filter) {
 
         /* ═══ OTP VERIFICATION ═══════════════════════════════════════ */
         function openOTPModal() {
-            if (APP_DATA.userData && APP_DATA.userData.emailVerified) {
-                var otpPage = document.getElementById('page-otp');
-                if (otpPage) otpPage.classList.remove('active');
-                unlockSite();
-                return;
-            }
             closeMod(); // Close any other auth modals
             var otpPage = document.getElementById('page-otp');
             if (otpPage) otpPage.classList.add('active');
@@ -5154,19 +5088,9 @@ function renderCareers(filter) {
                     setTimeout(function() { initiatePayment(pendingPlan); }, 800);
                 }
             } catch (err) {
-                var isAlreadyVerified = err.message && err.message.toLowerCase().includes('already verified');
-                if (isAlreadyVerified) {
-                    APP_DATA.userData.emailVerified = true;
-                    syncData();
-                    var otpPage = document.getElementById('page-otp');
-                    if (otpPage) otpPage.classList.remove('active');
-                    unlockSite();
-                    showToast('✅', 'Email is already verified!');
-                } else {
-                    showToast('❌', err.message);
-                    var errEl = document.getElementById('otp-err');
-                    if (errEl) { errEl.textContent = err.message; errEl.style.display = 'block'; }
-                }
+                showToast('❌', err.message);
+                var errEl = document.getElementById('otp-err');
+                if (errEl) { errEl.textContent = err.message; errEl.style.display = 'block'; }
             } finally {
                 btn.textContent = 'Verify Account →';
                 btn.disabled = false;
@@ -5188,17 +5112,7 @@ function renderCareers(filter) {
                     setTimeout(function() { msg.style.display = 'none'; }, 3000);
                 }
             } catch (err) {
-                var isAlreadyVerified = err.message && err.message.toLowerCase().includes('already verified');
-                if (isAlreadyVerified) {
-                    APP_DATA.userData.emailVerified = true;
-                    syncData();
-                    var otpPage = document.getElementById('page-otp');
-                    if (otpPage) otpPage.classList.remove('active');
-                    unlockSite();
-                    showToast('✅', 'Email is already verified!');
-                } else {
-                    showToast('❌', err.message);
-                }
+                showToast('❌', err.message);
             }
         }
 
@@ -5438,7 +5352,7 @@ function renderCareers(filter) {
                 if (count <= 0) {
                     clearInterval(waTimer);
                     if (cdTxt) cdTxt.textContent = 'Opening WhatsApp…';
-                    window.location.href = 'https://whatsapp.com/channel/0029Vb7v5JeFHWprvjppb207';
+                    window.open('https://whatsapp.com/channel/0029Vb7v5JeFHWprvjppb207', '_blank');
                     setTimeout(function() {
                         closeWAOverlay();
                         showTY();
@@ -5568,1886 +5482,189 @@ function renderCareers(filter) {
 
         /* ═══ INIT ═══════════════════════════════════════════════════ */
         document.addEventListener('DOMContentLoaded', function() {
-            initGoogleAnalytics();
+            // Set active class on navbar links corresponding to current path
+            var path = window.location.pathname;
+            var navLinks = document.querySelectorAll('.nav-ul a, .mob a');
+            navLinks.forEach(function(link) {
+                var href = link.getAttribute('href');
+                if (href) {
+                    if (path.endsWith(href) || (path === '/' && href === '/index.html') || (path.endsWith('/') && href === '/index.html')) {
+                        link.classList.add('active');
+                    }
+                }
+            });
+            if (window.requestIdleCallback) {
+                window.requestIdleCallback(function() { setTimeout(initGoogleAnalytics, 2000); });
+            } else {
+                setTimeout(initGoogleAnalytics, 2500);
+            }
             loadData();
             ensureStudentDefaults();
             ensureAuthDefaults();
             initAccessGate();
+            if (document.getElementById('ai-advisor')) {
+                ensureDOMPurifyLoaded();
+            }
             scheduleDeferredStartup();
 
-            var chatInput = document.getElementById('cp-inp');
-            if (chatInput) {
-                chatInput.addEventListener('keydown', function(event) {
-                    if (event.key === 'Enter') {
-                        event.preventDefault();
-                        sendMsg();
-                    }
+            // Event delegation for Chat Input Enter keypress
+            document.addEventListener('keydown', function(event) {
+                if (event.target && event.target.id === 'cp-inp' && event.key === 'Enter') {
+                    event.preventDefault();
+                    sendMsg();
+                }
+            });
+        });
+
+        // ═══ LIGHTWEIGHT SPA ROUTER FOR INSTANT AND SMOOTH TRANSITIONS ═══
+        (function() {
+            // Intercept internal HTML page navigations
+            document.addEventListener('click', function(e) {
+                var link = e.target.closest('a');
+                if (!link) return;
+                
+                var href = link.getAttribute('href');
+                if (!href || href.startsWith('#') || href.startsWith('http') || href.startsWith('javascript:')) return;
+                if (link.getAttribute('onclick')) return;
+                if (link.getAttribute('target') === '_blank') return;
+
+                // Parent Portal routing goes to server directly, skip intercept
+                if (href.startsWith('/parent')) return;
+
+                e.preventDefault();
+                window.navigateToPage(href);
+            });
+
+            window.addEventListener('popstate', function() {
+                loadPageContent(window.location.pathname, false);
+            });
+
+            // Single Page Application caching to load pages instantly (0ms network request)
+            var PAGE_CACHE = {};
+
+            // Prefetch other subpages in the background
+            function prefetchSubpages() {
+                var prefetchPages = ['/index.html', '/features.html', '/advisor.html', '/reviews.html', '/pricing.html'];
+                prefetchPages.forEach(function(url) {
+                    if (window.location.pathname.endsWith(url)) return;
+                    fetch(url)
+                        .then(function(res) { if (res.ok) return res.text(); })
+                        .then(function(html) { if (html) PAGE_CACHE[url] = html; })
+                        .catch(function() {});
                 });
             }
-        });
-
-// --- REACT LOGIN BRIDGE ---
-
-window.handleReactLogin = async function(email, pass, rememberMe) {
-    try {
-        var res = await fetch('/api/v1/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: email, password: pass })
-        });
-        var data = await res.json();
-        if (!res.ok) throw new Error(data.error || data.message || 'Login failed');
-        
-        APP_DATA.userData.id = data.user.id;
-        APP_DATA.userData.token = data.accessToken;
-        APP_DATA.userData.name = data.user.name;
-        APP_DATA.userData.email = data.user.email;
-        APP_DATA.userData.role = data.user.role;
-        APP_DATA.userData.emailVerified = data.user.emailVerified;
-        APP_DATA.userData.linkCode = data.user.linkCode || null;
-        APP_DATA.userData.trialExpiresAt = data.user.trialExpiresAt || null;
-        APP_DATA.userData.subscriptionExpiresAt = data.user.subscriptionExpiresAt || null;
-        APP_DATA.userData.rememberMe = rememberMe;
-        setLoggedIn(true);
-        loginGateActive = false;
-        
-        if (!data.user.emailVerified) {
-            openOTPModal();
-        } else {
-            closeMod();
-            unlockSite();
-            window.trackAnalyticsEvent('Login Success', { email: email });
-            showToast('✅', 'Signed in successfully.');
-            if (typeof window.pendingAuthAction === 'function') {
-                window.pendingAuthAction();
-                window.pendingAuthAction = null;
+            if (window.requestIdleCallback) {
+                window.requestIdleCallback(prefetchSubpages);
+            } else {
+                setTimeout(prefetchSubpages, 1500);
             }
-            var pendingPlan = sessionStorage.getItem('pending_payment_plan');
-            if (pendingPlan) {
-                sessionStorage.removeItem('pending_payment_plan');
-                setTimeout(function() { initiatePayment(pendingPlan); }, 800);
-            }
-        }
-        return { success: true };
-    } catch (err) {
-        window.trackAnalyticsEvent('Login Failure', { error: err.message, email: email });
-        showToast('❌', err.message);
-        return { success: false, error: err.message };
-    }
-};
 
-window.handleReactSignup = async function(name, email, pass, role, phone, city) {
-    APP_DATA.userData.phone = phone || '';
-    APP_DATA.userData.role = role || 'Student';
-    APP_DATA.userData.city = city || '';
-    syncData();
-    
-    try {
-        // Send to Formspree first to ensure we get the email even if backend fails
-        fetch('https://formspree.io/f/' + CFG.formspreeId, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify({
-                _subject: 'New Sign Up - ' + name,
-                Name: name, Email: email, Phone: APP_DATA.userData.phone,
-                Role: APP_DATA.userData.role, City: APP_DATA.userData.city
-            })
-        }).catch(function(){});
-
-        var res = await fetch('/api/v1/auth/signup', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: email, password: pass, name: name })
-        });
-        var data = await res.json();
-        if (!res.ok) throw new Error(data.error || data.message || 'Signup failed');
-
-        APP_DATA.userData.id = data.user.id;
-        APP_DATA.userData.token = data.accessToken;
-        APP_DATA.userData.name = data.user.name;
-        APP_DATA.userData.email = data.user.email;
-        APP_DATA.userData.role = data.user.role;
-        APP_DATA.userData.emailVerified = data.user.emailVerified;
-        APP_DATA.userData.trialExpiresAt = data.user.trialExpiresAt || null;
-        APP_DATA.userData.subscriptionExpiresAt = data.user.subscriptionExpiresAt || null;
-        APP_DATA.userData.rememberMe = false;
-        setLoggedIn(true);
-        loginGateActive = false;
-        
-        if (!data.user.emailVerified) {
-            openOTPModal();
-        } else {
-            closeMod();
-            unlockSite();
-            window.trackAnalyticsEvent('Signup Conversion', { role: APP_DATA.userData.role });
-            showToast('✅', 'Account created and signed in successfully.');
-            if (typeof window.pendingAuthAction === 'function') {
-                window.pendingAuthAction();
-                window.pendingAuthAction = null;
-            }
-            var pendingPlan = sessionStorage.getItem('pending_payment_plan');
-            if (pendingPlan) {
-                sessionStorage.removeItem('pending_payment_plan');
-                setTimeout(function() { initiatePayment(pendingPlan); }, 800);
-            }
-        }
-        return { success: true };
-    } catch (err) {
-        showToast('❌', err.message);
-        return { success: false, error: err.message };
-    }
-};
-
-window.handleReactForgotPassword = async function(email) {
-    try {
-        const res = await fetch('/api/v1/auth/forgot-password', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email })
-        });
-        if (res.ok) {
-            showToast('✅', 'Reset instructions sent to ' + email);
-            return { success: true };
-        } else {
-            const data = await res.json();
-            throw new Error(data.error || 'Failed to send reset link.');
-        }
-    } catch (err) {
-        showToast('❌', err.message);
-        return { success: false, error: err.message };
-    }
-};
-
-window.handleReactResetPassword = async function(email, otpCode, newPassword) {
-    try {
-        var res = await fetch('/api/v1/auth/reset-password', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, otpCode, newPassword })
-        });
-        if (res.ok) {
-            showToast('✅', 'Password reset successfully. You can now login.');
-            return { success: true };
-        } else {
-            const data = await res.json();
-            throw new Error(data.error || 'Failed to reset password.');
-        }
-    } catch (err) {
-        showToast('❌', err.message);
-        return { success: false, error: err.message };
-    }
-};
-
-// --- DASHBOARD UPGRADES (Streak, Goals, Deadlines, Progress, Resources) ---
-
-function initDashboardUpgrades() {
-    // 1. Theme Initialization
-    var storedTheme = localStorage.getItem('dtv_theme') || 'midnight';
-    setTheme(storedTheme);
-
-    // 2. Load Streak
-    var streak = parseInt(localStorage.getItem('dtv_streak') || '0', 10);
-    var bestStreak = parseInt(localStorage.getItem('dtv_best_streak') || '0', 10);
-    var lastActive = localStorage.getItem('dtv_last_active');
-    var today = new Date().toDateString();
-    
-    // Check if secure backend data is available
-    if (window.APP_DATA && window.APP_DATA.streak && typeof window.APP_DATA.streak.current !== 'undefined') {
-        streak = Math.max(streak, window.APP_DATA.streak.current);
-        bestStreak = Math.max(bestStreak, window.APP_DATA.streak.best || 0);
-        lastActive = window.APP_DATA.streak.lastActive || lastActive;
-        
-        // Sync securely down to local storage
-        localStorage.setItem('dtv_streak', streak);
-        localStorage.setItem('dtv_best_streak', bestStreak);
-        if (lastActive) {
-            localStorage.setItem('dtv_last_active', lastActive);
-        }
-    }
-    
-    // Check if streak was broken using reliable calendar day difference
-    if (lastActive) {
-        var lastDate = new Date(lastActive);
-        var todayDate = new Date();
-        if (!isNaN(lastDate.getTime())) {
-            lastDate.setHours(0, 0, 0, 0);
-            todayDate.setHours(0, 0, 0, 0);
-            var diffDays = Math.round((todayDate.getTime() - lastDate.getTime()) / (1000 * 3600 * 24));
-            
-            if (diffDays > 2) {
-                var shields = (window.APP_DATA && window.APP_DATA.studentTools) ? (window.APP_DATA.studentTools.streakShields || 0) : 0;
-                if (shields <= 0) {
-                    streak = 0; // Broken streak
-                }
-            }
-        }
-    }
-    
-    var btnIncStreak = document.getElementById('btn-increment-streak');
-    if (lastActive && new Date(lastActive).toDateString() === today && btnIncStreak) {
-        btnIncStreak.textContent = "Completed for Today";
-        btnIncStreak.disabled = true;
-        btnIncStreak.style.opacity = '0.5';
-    }
-    
-    localStorage.setItem('dtv_streak', streak);
-    localStorage.setItem('dtv_best_streak', bestStreak);
-    
-    updateStreakUI();
-    
-    // 3. Render Deadlines
-    renderDeadlines();
-    
-    // 4. Progress Comparison
-    renderProgressComparison();
-    
-    // 5. If profile exists, render goals and shortcuts
-    if (window.APP_DATA && window.APP_DATA.studentProfile && window.APP_DATA.studentProfile.type) {
-        refreshSmartGoals();
-        renderResourceShortcuts();
-
-        // Invoke Premium Renders
-        if (typeof renderLeaderboard === 'function') renderLeaderboard();
-        if (typeof renderXpProgress === 'function') renderXpProgress();
-        if (typeof renderStreakShields === 'function') renderStreakShields();
-    }
-
-    window.renderAll = function() {
-        if (typeof initStudentDashboard === 'function') {
-            initStudentDashboard();
-        }
-        if (typeof initDashboardUpgrades === 'function') {
-            initDashboardUpgrades();
-        }
-    };
-}
-
-// Ensure init is called after DOM load
-document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(initDashboardUpgrades, 500);
-    
-    // Resume pending payment if returning from login redirect
-    setTimeout(function() {
-        var pendingPlan = sessionStorage.getItem('pending_payment_plan');
-        if (pendingPlan && isLoggedIn()) {
-            sessionStorage.removeItem('pending_payment_plan');
-            initiatePayment(pendingPlan);
-        }
-    }, 1000);
-});
-
-// Hook into existing renderStudentProfile (monkey patching gently)
-var originalRenderStudentProfile = window.renderStudentProfile;
-if (typeof originalRenderStudentProfile === 'function') {
-    window.renderStudentProfile = function() {
-        originalRenderStudentProfile.apply(this, arguments);
-        refreshSmartGoals();
-        renderResourceShortcuts();
-    };
-} else {
-    // Fallback if not available yet
-    setTimeout(function() {
-        if (typeof window.renderStudentProfile === 'function') {
-            var orig = window.renderStudentProfile;
-            window.renderStudentProfile = function() {
-                orig.apply(this, arguments);
-                refreshSmartGoals();
-                renderResourceShortcuts();
+            window.navigateToPage = function(url) {
+                history.pushState(null, '', url);
+                loadPageContent(url, true);
             };
-        }
-    }, 1000);
-}
 
-window.incrementStreak = async function() {
-    var today = new Date().toDateString();
-    
-    // SECURE MODE: Use backend if logged in
-    if (window.APP_DATA && window.APP_DATA.userData && window.APP_DATA.userData.token) {
-        try {
-            // Fetch local storage values to send for migration
-            var localStreak = parseInt(localStorage.getItem('dtv_streak') || '0', 10);
-            var localBest = parseInt(localStorage.getItem('dtv_best_streak') || '0', 10);
-            var localLastActive = localStorage.getItem('dtv_last_active');
+            function loadPageContent(url, scrollToTop) {
+                var main = document.getElementById('page-main');
+                if (!main) return;
 
-            var res = await fetch('/api/v1/users/streak/increment', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + window.APP_DATA.userData.token
-                },
-                body: JSON.stringify({
-                    clientStreak: localStreak,
-                    clientBest: localBest,
-                    clientLastActive: localLastActive,
-                    clientToday: today
-                })
-            });
-            var data;
-            try {
-                data = await res.json();
-            } catch(e) {}
-            
-            if (res.ok && data) {
-                if (!window.APP_DATA.streak) window.APP_DATA.streak = {};
-                window.APP_DATA.streak.current = data.streak;
-                window.APP_DATA.streak.best = data.bestStreak;
-                window.APP_DATA.streak.lastActive = today;
-                
-                localStorage.setItem('dtv_streak', data.streak);
-                localStorage.setItem('dtv_best_streak', data.bestStreak);
-                localStorage.setItem('dtv_last_active', today);
-                
-                if (typeof data.streakShields !== 'undefined' && window.APP_DATA.studentTools) {
-                    window.APP_DATA.studentTools.streakShields = data.streakShields;
-                }
-                
-                updateStreakUI();
-                syncData();
-                
-                if(typeof showToast === 'function') {
-                    if (data.message === 'Already claimed today') {
-                        showToast('ℹ️', 'Streak already completed for today!');
-                    } else {
-                        showToast('🔥', 'Streak increased to ' + data.streak + ' days!');
+                // Smooth fade transition
+                main.style.transition = 'opacity 0.18s ease-out';
+                main.style.opacity = '0';
+
+                function renderContent(html) {
+                    var parser = new DOMParser();
+                    var doc = parser.parseFromString(html, 'text/html');
+
+                    // Update Page Title
+                    var newTitle = doc.querySelector('title');
+                    if (newTitle) document.title = newTitle.textContent;
+
+                    // Swap content
+                    var newMain = doc.getElementById('page-main');
+                    if (newMain) {
+                        main.innerHTML = newMain.innerHTML;
+                        main.className = newMain.className;
+                    }
+
+                    // Update active state in nav menu
+                    updateActiveNavLinks();
+
+                    // Scroll to top instantly before fade in
+                    if (scrollToTop) {
+                        window.scrollTo({ top: 0, behavior: 'instant' });
+                    }
+
+                    // Fade in content
+                    setTimeout(function() {
+                        main.style.opacity = '1';
+                    }, 50);
+
+                    // Re-trigger scroll reveal animations and tilts
+                    if (typeof window.initUXEngine === 'function') {
+                        window.initUXEngine();
+                    }
+                    if (document.getElementById('ai-advisor')) {
+                        ensureDOMPurifyLoaded();
+                    }
+
+                    // Run page-specific logic and data-binding initializations
+                    checkSession();
+                    updateSubscriptionTracker();
+
+                    if (document.getElementById('student-dashboard') && typeof initStudentDashboard === 'function') {
+                        initStudentDashboard();
+                        if (typeof initDashboardToggle === 'function') initDashboardToggle();
+                        var rawOpen = localStorage.getItem('dt_dashboard_open');
+                        if (rawOpen === '1' && typeof setDashboardOpen === 'function') {
+                            setDashboardOpen(true, false);
+                        }
+                    }
+
+                    if (document.getElementById('search-inp') && typeof renderCareers === 'function') {
+                        if (typeof initCareerExplorerToggle === 'function') initCareerExplorerToggle();
+                        if (window.CAREERS && window.CAREERS.length > 0) {
+                            renderCareers();
+                        } else {
+                            loadCareersData().then(renderCareers);
+                        }
+                    }
+
+                    if (document.querySelector('.feat-grid') && typeof initFeatureShowcase === 'function') {
+                        initFeatureShowcase();
                     }
                 }
-            } else if (res.status === 401) {
-                // Attempt silent refresh
-                var rf = await fetch('/api/v1/auth/refresh', {
-                    method: 'POST',
-                    credentials: 'include',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                if (rf.ok) {
-                    var rd = await rf.json();
-                    if (rd && rd.accessToken) {
-                        APP_DATA.userData.token = rd.accessToken;
-                        // Retry the streak increment once
-                        return window.incrementStreak();
+
+                if (PAGE_CACHE[url]) {
+                    renderContent(PAGE_CACHE[url]);
+                } else {
+                    fetch(url)
+                        .then(function(res) {
+                            if (!res.ok) throw new Error('Network error');
+                            return res.text();
+                        })
+                        .then(function(html) {
+                            PAGE_CACHE[url] = html;
+                            renderContent(html);
+                        })
+                        .catch(function(err) {
+                            console.error('AJAX navigation failed. Falling back to default reload.', err);
+                            window.location.href = url;
+                        });
+                }
+            }
+
+            function updateActiveNavLinks() {
+                var path = window.location.pathname;
+                var navLinks = document.querySelectorAll('.nav-ul a, .mob a');
+                navLinks.forEach(function(link) {
+                    link.classList.remove('active');
+                    var href = link.getAttribute('href');
+                    if (href) {
+                        if (path.endsWith(href) || (path === '/' && href === '/index.html') || (path.endsWith('/') && href === '/index.html')) {
+                            link.classList.add('active');
+                        }
                     }
-                }
-                if(typeof showToast === 'function') showToast('❌', 'Session expired. Please sign in again.');
-                APP_DATA.userData.token = null;
-                localStorage.removeItem('dt_user');
-                sessionStorage.removeItem('dt_appdata_v3');
-                if(typeof setLoggedIn === 'function') setLoggedIn(false);
-                setTimeout(function() { window.location.href = '/login.html'; }, 1500);
-            } else {
-                if(typeof showToast === 'function') showToast('❌', 'Failed to update streak securely.');
-            }
-        } catch (e) {
-            console.error('Streak API Error:', e);
-            if(typeof showToast === 'function') showToast('❌', 'Network error while updating streak.');
-        }
-        return;
-    }
-
-    // GUEST MODE: Fallback to local storage
-    var streak = parseInt(localStorage.getItem('dtv_streak') || '0', 10);
-    var bestStreak = parseInt(localStorage.getItem('dtv_best_streak') || '0', 10);
-    
-    streak += 1;
-    if (streak > bestStreak) bestStreak = streak;
-    
-    localStorage.setItem('dtv_streak', streak);
-    localStorage.setItem('dtv_best_streak', bestStreak);
-    localStorage.setItem('dtv_last_active', today);
-    
-    var btn = document.getElementById('btn-increment-streak');
-    if(btn) {
-        btn.textContent = "Completed for Today";
-        btn.disabled = true;
-        btn.style.opacity = '0.5';
-    }
-    updateStreakUI();
-    if(typeof showToast === 'function') showToast('🔥', 'Streak increased to ' + streak + ' days!');
-};
-
-function updateStreakUI() {
-    var streak = localStorage.getItem('dtv_streak') || '0';
-    var bestStreak = localStorage.getItem('dtv_best_streak') || '0';
-    var lastActive = localStorage.getItem('dtv_last_active');
-    
-    if (window.APP_DATA && window.APP_DATA.streak && typeof window.APP_DATA.streak.current !== 'undefined') {
-        streak = window.APP_DATA.streak.current;
-        bestStreak = window.APP_DATA.streak.best;
-        lastActive = window.APP_DATA.streak.lastActive;
-    }
-    
-    var elCur = document.getElementById('dash-streak-count');
-    var elBest = document.getElementById('dash-streak-best');
-    
-    if (elCur) elCur.textContent = streak + (streak == 1 ? ' Day' : ' Days');
-    if (elBest) elBest.textContent = bestStreak + (bestStreak == 1 ? ' Day' : ' Days');
-
-    // Update button status based on 12:00 AM daily timing
-    var today = new Date().toDateString();
-    var btn = document.getElementById('btn-increment-streak');
-    if (btn) {
-        if (lastActive === today) {
-            btn.textContent = "Completed for Today";
-            btn.disabled = true;
-            btn.style.opacity = '0.5';
-            btn.style.cursor = 'default';
-        } else {
-            btn.textContent = "Mark Today Complete";
-            btn.disabled = false;
-            btn.style.opacity = '1';
-            btn.style.cursor = 'pointer';
-        }
-    }
-
-    // Render visual 7-day calendar bubbles
-    if (typeof renderStreakCalendar === 'function') {
-        renderStreakCalendar();
-    }
-
-    // Render streak shields count
-    var countEl = document.getElementById('streak-shield-count');
-    if (countEl && window.APP_DATA && window.APP_DATA.studentTools) {
-        countEl.textContent = window.APP_DATA.studentTools.streakShields || 0;
-    }
-}
-
-window.refreshSmartGoals = function() {
-    var list = document.getElementById('smart-goals-list');
-    if (!list) return;
-    
-    var profile = window.APP_DATA && window.APP_DATA.studentProfile ? window.APP_DATA.studentProfile : null;
-    if (!profile || !profile.type) {
-        list.innerHTML = '<li style="font-size: 0.85rem; color: var(--mu); list-style: none;">Select a profile to see goals</li>';
-        return;
-    }
-    
-    var goals = [];
-    if (profile.type === 'school') {
-        var cls = parseInt(profile.classLevel || '9', 10);
-        if (cls <= 8) {
-            goals = ["Build basic foundational concepts", "Participate in science Olympiads", "Explore 5 careers in Explorer"];
-        } else if (cls <= 10) {
-            goals = ["Prepare for Board Exams", "Shortlist top 3 career streams", "Take mock aptitude tests"];
-        } else {
-            goals = ["Focus on entrance exam prep", "Finalize college target list", "Build a strong extracurricular profile"];
-        }
-    } else {
-        var st = (profile.stream || '').toLowerCase();
-        if (st.includes('tech') || st.includes('cse')) {
-            goals = ["Master Data Structures & Algorithms", "Build 2 side projects", "Apply for summer internships"];
-        } else if (st.includes('com') || st.includes('mba')) {
-            goals = ["Analyze 3 business case studies", "Improve financial modeling skills", "Join a consulting club"];
-        } else {
-            goals = ["Build a strong resume", "Network with alumni on LinkedIn", "Read industry research reports"];
-        }
-    }
-    
-    // Add a randomize effect
-    goals = goals.sort(function() { return 0.5 - Math.random(); });
-    
-    var html = '';
-    goals.forEach(function(g) {
-        html += '<li class="chk-item" onclick="this.classList.toggle(\'checked\')"><span class="chk-box"></span><span class="chk-lbl">' + g + '</span></li>';
-    });
-    list.innerHTML = html;
-};
-
-window.renderResourceShortcuts = function() {
-    var list = document.getElementById('resource-shortcuts-list');
-    if (!list) return;
-    
-    var profile = window.APP_DATA && window.APP_DATA.studentProfile ? window.APP_DATA.studentProfile : null;
-    if (!profile || !profile.type) {
-        list.innerHTML = '<div style="font-size: 0.85rem; color: var(--mu);">Select profile to see resources</div>';
-        return;
-    }
-    
-    var resources = [];
-    if (profile.type === 'school') {
-        var cls = parseInt(profile.classLevel || '9', 10);
-        
-        if (cls >= 11) {
-            resources = [
-                {
-                    n: 'Class ' + cls + ' NCERT Solutions', 
-                    desc: 'Expert answers for Higher Secondary Physics, Chemistry & Math.', 
-                    url: 'https://www.learncbse.in/ncert-solutions-for-class-' + cls + '/',
-                    c: '#3b82f6',
-                    icon: '📚'
-                },
-                {
-                    n: 'CBSE Class 12 Boards Papers', 
-                    desc: 'Download board examination and evaluation keys.', 
-                    url: 'https://www.cbse.gov.in/cbsenew/question-paper.html',
-                    c: '#a855f7',
-                    icon: '📝'
-                },
-                {
-                    n: 'JEE / NEET Prep Guide', 
-                    desc: 'Official practice tests and previous year papers from NTA.', 
-                    url: 'https://www.nta.ac.in/',
-                    c: '#10b981',
-                    icon: '🚀'
-                }
-            ];
-        } else if (cls >= 9) {
-            resources = [
-                {
-                    n: 'Class ' + cls + ' NCERT Solutions', 
-                    desc: 'Free textbook solutions for Class ' + cls + ' Board Foundation.', 
-                    url: 'https://www.learncbse.in/ncert-solutions-for-class-' + cls + '/',
-                    c: '#3b82f6',
-                    icon: '📚'
-                },
-                {
-                    n: 'CBSE Class 10 Boards Papers', 
-                    desc: 'Download board sample questions and mock tests.', 
-                    url: 'https://www.cbse.gov.in/cbsenew/question-paper.html',
-                    c: '#a855f7',
-                    icon: '📝'
-                },
-                {
-                    n: 'High School Olympiads Prep', 
-                    desc: 'Logical Reasoning and Science Olympiad practice mock papers.', 
-                    url: 'https://www.crestolympiads.com/olympiad-mock-tests',
-                    c: '#10b981',
-                    icon: '🏆'
-                }
-            ];
-        } else {
-            resources = [
-                {
-                    n: 'Class ' + cls + ' NCERT Solutions', 
-                    desc: 'Easy-to-understand solutions for Class ' + cls + ' syllabus.', 
-                    url: 'https://www.learncbse.in/ncert-solutions/',
-                    c: '#3b82f6',
-                    icon: '📚'
-                },
-                {
-                    n: 'Middle School STEM Practice', 
-                    desc: 'Interactive math, grammar, and science lessons.', 
-                    url: 'https://www.khanacademy.org/',
-                    c: '#a855f7',
-                    icon: '🧬'
-                },
-                {
-                    n: 'Junior Olympiads Prep', 
-                    desc: 'Practice logical and science assessments for kids.', 
-                    url: 'https://www.crestolympiads.com/',
-                    c: '#10b981',
-                    icon: '🏆'
-                }
-            ];
-        }
-    } else {
-        var st = (profile.stream || '').toLowerCase();
-        var yr = (profile.uniLevel || '1st Year').toLowerCase();
-        
-        if (st.includes('tech') || st.includes('cse')) {
-            if (yr.includes('3rd') || yr.includes('4th') || yr.includes('final')) {
-                resources = [
-                    {
-                        n: 'LeetCode Interview Prep', 
-                        desc: 'Advanced problem sets for placements and FAANG preparation.', 
-                        url: 'https://leetcode.com/problemset/all/',
-                        c: '#f59e0b',
-                        icon: '💻'
-                    },
-                    {
-                        n: 'System Design Primer', 
-                        desc: 'Learn high-scale system design and architectural principles.', 
-                        url: 'https://github.com/donnemartin/system-design-primer',
-                        c: '#6366f1',
-                        icon: '📐'
-                    },
-                    {
-                        n: 'Developer Resume Builder', 
-                        desc: 'Build a premium developer resume and portfolio.', 
-                        url: 'https://resume.io/',
-                        c: '#06b6d4',
-                        icon: '📄'
-                    }
-                ];
-            } else {
-                resources = [
-                    {
-                        n: 'Coding Foundations', 
-                        desc: 'Master basic data structures and algorithms.', 
-                        url: 'https://leetcode.com/problemset/all/',
-                        c: '#f59e0b',
-                        icon: '💻'
-                    },
-                    {
-                        n: 'GitHub Student Pack', 
-                        desc: 'Get free premium developer tools and cloud credits.', 
-                        url: 'https://education.github.com/pack',
-                        c: '#6366f1',
-                        icon: '🐙'
-                    },
-                    {
-                        n: 'Web Development MDN Guide', 
-                        desc: 'Complete documentation for HTML, CSS, and JS.', 
-                        url: 'https://developer.mozilla.org/',
-                        c: '#06b6d4',
-                        icon: '🌐'
-                    }
-                ];
-            }
-        } else {
-            resources = [
-                {
-                    n: 'Harvard Business Review Cases', 
-                    desc: 'Analyze top corporate business and finance scenarios.', 
-                    url: 'https://hbr.org/store/case-studies',
-                    c: '#ef4444',
-                    icon: '📊'
-                },
-                {
-                    n: 'McKinsey Market Insights', 
-                    desc: 'Read strategic global research reports on modern industries.', 
-                    url: 'https://www.mckinsey.com/featured-insights',
-                    c: '#06b6d4',
-                    icon: '💡'
-                },
-                {
-                    n: 'LinkedIn Alumni Network Guide', 
-                    desc: 'Learn how to strategically connect with professional mentors.', 
-                    url: 'https://www.linkedin.com/help/linkedin/answer/a511394/using-the-linkedin-alumni-tool',
-                    c: '#3b82f6',
-                    icon: '🤝'
-                }
-            ];
-        }
-    }
-    
-    var html = '<div style="display: flex; flex-direction: column; gap: 0.75rem; width: 100%; margin-top: 0.5rem;">';
-    resources.forEach(function(r) {
-        html += '<a href="' + r.url + '" target="_blank" rel="noopener noreferrer" style="' +
-                'display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; ' +
-                'background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); ' +
-                'border-radius: 8px; text-decoration: none; transition: all 0.2s ease; ' +
-                'cursor: pointer;" ' +
-                'onmouseover="this.style.background=\'rgba(255,255,255,0.07)\'; this.style.borderColor=\'' + r.c + '40\';" ' +
-                'onmouseout="this.style.background=\'rgba(255,255,255,0.03)\'; this.style.borderColor=\'rgba(255,255,255,0.06)\';">' +
-                '<span style="font-size: 1.25rem; background: ' + r.c + '15; padding: 0.4rem; border-radius: 6px; display: flex; align-items: center; justify-content: center;">' + r.icon + '</span>' +
-                '<div style="display: flex; flex-direction: column; text-align: left;">' +
-                '<span style="font-weight: 600; font-size: 0.85rem; color: #f3f4f6;">' + escapeHTML(r.n) + '</span>' +
-                '<small style="font-size: 0.72rem; color: var(--mu); margin-top: 0.15rem;">' + escapeHTML(r.desc) + '</small>' +
-                '</div>' +
-                '<span style="margin-left: auto; font-size: 0.8rem; opacity: 0.5; color: ' + r.c + ';">↗</span>' +
-                '</a>';
-    });
-    html += '</div>';
-    list.innerHTML = html;
-};
-
-window.addDeadline = function() {
-    var inp = document.getElementById('new-deadline-input');
-    var dateInp = document.getElementById('new-deadline-date');
-    if (!inp || !dateInp) return;
-    
-    var title = inp.value.trim();
-    var dateVal = dateInp.value;
-    if (!title || !dateVal) {
-        if(typeof showToast === 'function') showToast('⚠️', 'Please provide both title and date.');
-        return;
-    }
-    
-    ensureStudentDefaults();
-    if (!APP_DATA.studentTools.deadlines) {
-        APP_DATA.studentTools.deadlines = [];
-    }
-    
-    APP_DATA.studentTools.deadlines.push({ title: title, date: dateVal });
-    
-    APP_DATA.studentTools.deadlines.sort(function(a, b) {
-        return new Date(a.date) - new Date(b.date);
-    });
-    
-    localStorage.setItem('dtv_deadlines', JSON.stringify(APP_DATA.studentTools.deadlines));
-    inp.value = '';
-    dateInp.value = '';
-    syncData();
-    renderDeadlines();
-};
-
-window.deleteDeadline = function(idx) {
-    ensureStudentDefaults();
-    if (!APP_DATA.studentTools.deadlines) return;
-    APP_DATA.studentTools.deadlines.splice(idx, 1);
-    localStorage.setItem('dtv_deadlines', JSON.stringify(APP_DATA.studentTools.deadlines));
-    syncData();
-    renderDeadlines();
-};
-
-function renderDeadlines() {
-    var list = document.getElementById('deadlines-list');
-    if (!list) return;
-    
-    ensureStudentDefaults();
-    if (!APP_DATA.studentTools.deadlines || APP_DATA.studentTools.deadlines.length === 0) {
-        var local = JSON.parse(localStorage.getItem('dtv_deadlines') || '[]');
-        if (local && local.length > 0) {
-            APP_DATA.studentTools.deadlines = local;
-        } else {
-            APP_DATA.studentTools.deadlines = [];
-        }
-    }
-    
-    var deadlines = APP_DATA.studentTools.deadlines;
-    if (deadlines.length === 0) {
-        list.innerHTML = '<div style="font-size: 0.85rem; color: var(--mu);">No upcoming deadlines pinned.</div>';
-        return;
-    }
-    
-    var html = '';
-    deadlines.forEach(function(d, i) {
-        html += '<div style="display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.03); padding:0.5rem; border-radius:6px; font-size:0.85rem;">';
-        html += '<span><strong>' + escapeHTML(d.title) + '</strong> <br><small style="color:var(--mu);">' + escapeHTML(d.date) + '</small></span>';
-        html += '<button onclick="deleteDeadline('+i+')" style="background:transparent; border:none; color:var(--red); cursor:pointer;">✕</button>';
-        html += '</div>';
-    });
-    list.innerHTML = html;
-}
-
-async function renderProgressComparison() {
-    var twTime = 0;
-    var lwTime = 0;
-    var twAcc = 0;
-    var lwAcc = 0;
-
-    var loggedIn = window.APP_DATA && window.APP_DATA.userData && window.APP_DATA.userData.token;
-    if (loggedIn) {
-        try {
-            var res = await fetch('/api/v1/users/dashboard-stats', {
-                headers: {
-                    'Authorization': 'Bearer ' + window.APP_DATA.userData.token
-                }
-            });
-            if (res.ok) {
-                var stats = await res.json();
-                twTime = stats.studyTimeThisWeek || 0;
-                lwTime = stats.studyTimeLastWeek || 0;
-                twAcc = stats.accuracyThisWeek || 0;
-                lwAcc = stats.accuracyLastWeek || 0;
-            }
-        } catch(e) {
-            console.error('Error fetching dashboard stats:', e);
-        }
-    }
-
-    var elTwT = document.getElementById('prog-time-tw');
-    var elLwT = document.getElementById('prog-time-lw');
-    var elTwA = document.getElementById('prog-acc-tw');
-    var elLwA = document.getElementById('prog-acc-lw');
-    var elTrend = document.getElementById('prog-trend-lbl');
-    var elBar = document.getElementById('prog-time-bar');
-    
-    if (elTwT) elTwT.textContent = twTime + ' hrs';
-    if (elLwT) elLwT.textContent = lwTime + ' hrs';
-    if (elTwA) elTwA.textContent = Math.round(twAcc) + '%';
-    if (elLwA) elLwA.textContent = Math.round(lwAcc) + '%';
-    
-    if (elTrend && elBar) {
-        var diff = twTime - lwTime;
-        var pct = lwTime > 0 ? Math.round((diff / lwTime) * 100) : (twTime > 0 ? 100 : 0);
-        if (diff >= 0) {
-            elTrend.textContent = '+' + pct + '%';
-            elTrend.style.color = '#6ee7b7';
-            elBar.style.width = Math.min(100, 50 + (pct/2)) + '%';
-            elBar.style.background = '#22c55e';
-        } else {
-            elTrend.textContent = pct + '%';
-            elTrend.style.color = '#ef4444';
-            elBar.style.width = Math.max(10, 50 + (pct/2)) + '%';
-            elBar.style.background = '#ef4444';
-        }
-    }
-}
-
-// --- THEME SWITCHER (Task 4) ---
-window.setTheme = function(themeName) {
-    document.documentElement.setAttribute('data-theme', themeName);
-    localStorage.setItem('dtv_theme', themeName);
-    
-    // Update theme toggle UI if it exists
-    var themeLabel = document.getElementById('theme-active-label');
-    if (themeLabel) {
-        var labels = {
-            'midnight': 'Midnight Dark',
-            'light': 'Light Professional',
-            'navy': 'Deep Navy',
-            'slate': 'Slate Graphite'
-        };
-        themeLabel.textContent = labels[themeName] || 'Midnight Dark';
-    }
-    
-    var dropdown = document.getElementById('theme-dropdown');
-    if (dropdown) dropdown.classList.remove('show');
-};
-
-window.toggleThemeDropdown = function() {
-    var dropdown = document.getElementById('theme-dropdown');
-    if (dropdown) {
-        dropdown.classList.toggle('open');
-    }
-};
-
-document.addEventListener('click', function(e) {
-    if (!e.target.closest('#theme-switcher')) {
-        var dropdown = document.getElementById('theme-dropdown');
-        if (dropdown && dropdown.classList.contains('open')) {
-            dropdown.classList.remove('open');
-        }
-    }
-});
-
-
-/* Fetch Latest Blogs for Homepage */
-async function fetchLatestBlogs() {
-    const grid = document.getElementById('home-blog-grid');
-    if (!grid) return;
-    try {
-        const res = await fetch('/blog/api/latest');
-        if (!res.ok) return;
-        const blogs = await res.json();
-        if (!blogs || blogs.length === 0) return;
-        grid.innerHTML = blogs.map(b => `<a href='/blog/${b.slug}' class='blog-card'>
-            <img src='${b.featuredImage}' alt='${b.title}' loading='lazy' decoding='async'>
-            <div class='blog-card-content'>
-                <div class='blog-card-meta'>${b.publishedDate} &bull; ${b.readingTime}</div>
-                <h2 class='blog-card-title'>${b.title}</h2>
-                <p style='color: #a1a1aa; font-size: 0.95rem;'>${b.metaDescription}</p>
-            </div>
-        </a>`).join('');
-    } catch (e) { console.error('Error fetching blogs:', e); }
-}
-document.addEventListener('DOMContentLoaded', fetchLatestBlogs);
-
-/* Fetch & Update Student Journeys Blog Cards dynamically */
-async function fetchStudentJourneyBlogs() {
-    const grid = document.getElementById('student-journeys-grid');
-    if (!grid) return;
-    try {
-        const res = await fetch('/blog/api/latest');
-        if (!res.ok) return;
-        const blogs = await res.json();
-        if (!blogs || blogs.length === 0) return;
-        
-        const top3 = blogs.slice(0, 3);
-        grid.innerHTML = top3.map((b, idx) => `
-            <a href="/blog/${b.slug}" class="story-card rv d${idx + 1} visible" style="opacity: 1; transform: translateY(0px);">
-                <div class="story-media">
-                    <img loading="lazy" decoding="async" src="${b.featuredImage}" alt="${b.title}" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=600&fm=webp&q=80';">
-                </div>
-                <div class="story-overlay">
-                    <span class="story-tag">${b.category || b.tag || 'Blog'}</span>
-                    <h3 class="story-title">${b.title}</h3>
-                    <p class="story-copy">${b.metaDescription || b.excerpt || ''}</p>
-                </div>
-            </a>
-        `).join('');
-    } catch (e) {
-        console.error('Error fetching student journey blogs:', e);
-    }
-}
-document.addEventListener('DOMContentLoaded', fetchStudentJourneyBlogs);
-
-/* ========================================================
-   PREMIUM GAMIFICATION & PRODUCTIVITY FEATURES
-   ======================================================== */
-
-async function renderXpProgress() {
-    var loggedIn = window.APP_DATA && window.APP_DATA.userData && window.APP_DATA.userData.token;
-    if (!loggedIn) {
-        var card = document.getElementById('xp-profile-card');
-        if (card) card.style.display = 'none';
-        return;
-    }
-    try {
-        var res = await fetch('/api/v1/users/leaderboard', {
-            headers: { 'Authorization': 'Bearer ' + window.APP_DATA.userData.token }
-        });
-        if (res.ok) {
-            var data = await res.json();
-            var xp = data.userXp || 0;
-            var level = Math.floor(xp / 150) + 1;
-            var currentLevelXp = xp % 150;
-            if (xp < 0) {
-                level = 1;
-                currentLevelXp = 0;
-            }
-
-            var badges = ['🟫 Bronze', '🟫 Bronze', '🟫 Bronze', '⬜ Silver', '⬜ Silver', '🟨 Gold', '🟨 Gold', '💎 Platinum'];
-            var badge = badges[Math.min(level, badges.length - 1)];
-
-            var levelEl = document.getElementById('profile-level');
-            if (levelEl) {
-                levelEl.innerHTML = '<span style="color:#60a5fa;">Level ' + level + '</span> <small style="color:var(--mu); font-size:0.75rem;">(' + badge + ')</small>';
-            }
-
-            var xpText = document.getElementById('profile-xp-text');
-            var xpBar = document.getElementById('profile-xp-bar');
-            var card = document.getElementById('xp-profile-card');
-            
-            if (xpText) xpText.textContent = currentLevelXp + ' / 150 XP';
-            if (xpBar) xpBar.style.width = ((currentLevelXp / 150) * 100) + '%';
-            if (card) card.style.display = 'block';
-        }
-    } catch(e) {
-        console.error('Error rendering XP progress:', e);
-    }
-}
-
-async function renderLeaderboard() {
-    var list = document.getElementById('leaderboard-list');
-    var optInChk = document.getElementById('leaderboard-opt-in-chk');
-    if (!list) return;
-
-    var loggedIn = window.APP_DATA && window.APP_DATA.userData && window.APP_DATA.userData.token;
-    if (!loggedIn) {
-        list.innerHTML = '<div style="font-size: 0.85rem; color: var(--mu);">Log in to view rankings</div>';
-        return;
-    }
-
-    try {
-        var res = await fetch('/api/v1/users/leaderboard', {
-            headers: { 'Authorization': 'Bearer ' + window.APP_DATA.userData.token }
-        });
-        if (res.ok) {
-            var data = await res.json();
-            var board = data.leaderboard || [];
-            
-            if (optInChk) {
-                optInChk.checked = data.optIn;
-            }
-
-            if (board.length === 0) {
-                list.innerHTML = '<div style="font-size: 0.85rem; color: var(--mu);">No rankings generated yet</div>';
-                return;
-            }
-
-            var html = '';
-            var trophies = ['🥇', '🥈', '🥉'];
-            var colors = ['#f59e0b', '#cbd5e1', '#b45309'];
-            
-            board.forEach(function(item, idx) {
-                var trophy = trophies[idx] || '⭐';
-                var color = colors[idx] || 'var(--mu)';
-                var isSelf = item.user_id === window.APP_DATA.userData.id;
-                
-                html += '<div style="display:flex; justify-content:space-between; align-items:center; background:' + (isSelf ? 'rgba(59,130,246,0.1)' : 'rgba(255,255,255,0.02)') + '; padding:0.5rem; border-radius:6px; border:1px solid ' + (isSelf ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.04)') + '; font-size:0.85rem;">';
-                html += '<span><span style="color:' + color + '; margin-right:0.4rem;">' + trophy + '</span><strong>' + escapeHTML(item.display_name) + '</strong> <small style="color:var(--mu);">(' + escapeHTML(item.city || 'India') + ')</small></span>';
-                html += '<strong style="color:#6ee7b7;">' + item.score + ' pts</strong>';
-                html += '</div>';
-            });
-            
-            var inTop3 = board.some(function(item) { return item.user_id === window.APP_DATA.userData.id; });
-            if (!inTop3 && data.userRank && data.userRank !== '-') {
-                html += '<div style="text-align:center; font-size:0.75rem; color:var(--mu); margin:0.25rem 0;">...</div>';
-                html += '<div style="display:flex; justify-content:space-between; align-items:center; background:rgba(59,130,246,0.1); padding:0.5rem; border-radius:6px; border:1px solid rgba(59,130,246,0.3); font-size:0.85rem;">';
-                html += '<span><span style="margin-right:0.4rem;">🎖️ Rank ' + data.userRank + '</span><strong>' + escapeHTML(window.APP_DATA.userData.name || 'Me') + '</strong> <small style="color:var(--mu);">(' + escapeHTML(window.APP_DATA.userData.city || 'India') + ')</small></span>';
-                html += '<strong style="color:#6ee7b7;">' + data.userScore + ' pts</strong>';
-                html += '</div>';
-            }
-            
-            list.innerHTML = html;
-        }
-    } catch(e) {
-        console.error('Error rendering leaderboard:', e);
-    }
-}
-
-async function toggleLeaderboardOptIn(checked) {
-    var loggedIn = window.APP_DATA && window.APP_DATA.userData && window.APP_DATA.userData.token;
-    if (!loggedIn) return;
-    try {
-        await fetch('/api/v1/users/leaderboard/opt-in', {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + window.APP_DATA.userData.token
-            },
-            body: JSON.stringify({ optIn: checked })
-        });
-        if (typeof showToast === 'function') {
-            showToast('🛡️', checked ? 'Leaderboard visibility enabled.' : 'Leaderboard visibility disabled.');
-        }
-        renderLeaderboard();
-    } catch(e) {
-        console.error('Error toggling leaderboard opt-in:', e);
-    }
-}
-
-async function renderStreakShields() {
-    var countEl = document.getElementById('streak-shield-count');
-    if (!countEl) return;
-
-    var loggedIn = window.APP_DATA && window.APP_DATA.userData && window.APP_DATA.userData.token;
-    if (!loggedIn) return;
-    
-    ensureStudentDefaults();
-    var count = window.APP_DATA.studentTools.streakShields || 0;
-    countEl.textContent = count;
-}
-
-async function purchaseStreakShield() {
-    var loggedIn = window.APP_DATA && window.APP_DATA.userData && window.APP_DATA.userData.token;
-    if (!loggedIn) {
-        if (typeof showToast === 'function') showToast('⚠️', 'Please log in to purchase a Streak Shield.');
-        return;
-    }
-    try {
-        var res = await fetch('/api/v1/users/streak/freeze', {
-            method: 'POST',
-            headers: {
-                'Authorization': 'Bearer ' + window.APP_DATA.userData.token
-            }
-        });
-        if (res.ok) {
-            var data = await res.json();
-            ensureStudentDefaults();
-            window.APP_DATA.studentTools.streakShields = data.streakShields;
-            
-            if (typeof showToast === 'function') {
-                showToast('🛡️', 'Streak Shield Purchased! remaining XP: ' + data.remainingXp);
-            }
-            renderStreakShields();
-            renderXpProgress();
-        } else {
-            var err = await res.json();
-            if (typeof showToast === 'function') {
-                showToast('⚠️', err.error || 'Failed to purchase shield.');
-            }
-        }
-    } catch(e) {
-        console.error('Error purchasing streak shield:', e);
-    }
-}
-
-async function awardXpForGoal(title) {
-    var loggedIn = window.APP_DATA && window.APP_DATA.userData && window.APP_DATA.userData.token;
-    if (!loggedIn) return;
-    try {
-        var resGoal = await fetch('/api/v1/users/goals', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + window.APP_DATA.userData.token
-            },
-            body: JSON.stringify({ title: title, category: 'Daily' })
-        });
-        if (resGoal.ok) {
-            var goalData = await resGoal.json();
-            await fetch('/api/v1/users/goals/' + goalData.goal.id, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + window.APP_DATA.userData.token
-                },
-                body: JSON.stringify({ status: 'Achieved' })
-            });
-            
-            if (typeof showToast === 'function') {
-                showToast('🎉', 'Goal Completed! +50 XP Awarded.');
-            }
-            renderXpProgress();
-            renderLeaderboard();
-        }
-    } catch(e) {
-        console.error('Error logging goal achievement XP:', e);
-    }
-}
-
-async function downloadReportCard() {
-    if (!isLoggedIn()) {
-        if (typeof showToast === 'function') showToast('🔒', 'Please sign in to generate and download your report card.');
-        openLoginPage();
-        return;
-    }
-    try {
-        var res = await fetch('/api/v1/users/report-card', {
-            headers: {
-                'Authorization': 'Bearer ' + window.APP_DATA.userData.token
-            }
-        });
-        if (res.ok) {
-            var data = await res.json();
-            var printWindow = window.open('', '_blank');
-            if (!printWindow) {
-                if (typeof showToast === 'function') showToast('⚠️', 'Pop-up blocked. Please allow pop-ups for this site.');
-                return;
-            }
-            
-            var html = '<html><head><title>Academic Progress Report Card</title>';
-            html += '<style>';
-            html += 'body { font-family: "Outfit", "Inter", sans-serif; background: #0f172a; color: #f1f5f9; padding: 2rem; }';
-            html += '.card { max-width: 800px; margin: 0 auto; background: #1e293b; padding: 2rem; border-radius: 12px; border: 1px solid #334155; }';
-            html += '.header { text-align: center; border-bottom: 2px solid #3b82f6; padding-bottom: 1.5rem; margin-bottom: 1.5rem; }';
-            html += 'h1 { margin: 0; color: #3b82f6; font-size: 2.2rem; }';
-            html += '.meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem; background: #0f172a; padding: 1rem; border-radius: 8px; }';
-            html += '.meta-item span { color: #94a3b8; font-size: 0.85rem; }';
-            html += '.meta-item strong { display: block; font-size: 1.1rem; color: #f1f5f9; }';
-            html += 'h3 { border-bottom: 1px solid #475569; padding-bottom: 0.5rem; color: #60a5fa; }';
-            html += 'table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; }';
-            html += 'th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #334155; }';
-            html += 'th { background: #334155; color: #f1f5f9; }';
-            html += '.print-btn { display: block; width: 200px; margin: 2rem auto 0 auto; padding: 0.75rem; background: #3b82f6; color: white; border: none; border-radius: 6px; font-size: 1rem; font-weight: bold; cursor: pointer; text-align: center; }';
-            html += '@media print { .print-btn { display: none; } }';
-            html += '</style></head><body>';
-            html += '<div class="card">';
-            html += '<div class="header"><h1>Digital Twin Verse</h1><p>Student Academic & Study Progress Report Card</p></div>';
-            html += '<div class="meta-grid">';
-            html += '<div class="meta-item"><span>Student Name</span><strong>' + (data.user.name || 'Alex Rivera') + '</strong></div>';
-            html += '<div class="meta-item"><span>Registered Email</span><strong>' + (data.user.email || '-') + '</strong></div>';
-            html += '<div class="meta-item"><span>Field of Study</span><strong>' + (data.user.field_of_study || 'Computer Science & AI') + '</strong></div>';
-            html += '<div class="meta-item"><span>Target Career</span><strong>' + (data.user.target_career || 'AI Research Scientist') + '</strong></div>';
-            html += '</div>';
-            
-            html += '<h3>📚 Recent Learning Sessions</h3>';
-            if (data.sessions.length === 0) {
-                html += '<p style="color: #94a3b8; font-size: 0.9rem;">No learning sessions logged yet.</p>';
-            } else {
-                html += '<table><thead><tr><th>Subject</th><th>Duration (min)</th><th>Type</th><th>Logged Date</th></tr></thead><tbody>';
-                data.sessions.forEach(function(s) {
-                    var date = new Date(s.start_time).toLocaleDateString();
-                    html += '<tr><td>' + s.subject + '</td><td>' + s.duration_minutes + ' mins</td><td>' + s.session_type + '</td><td>' + date + '</td></tr>';
                 });
-                html += '</tbody></table>';
             }
-            
-            html += '<h3>🏆 Recent Assessment & Quiz Performance</h3>';
-            if (data.quizzes.length === 0) {
-                html += '<p style="color: #94a3b8; font-size: 0.9rem;">No quiz attempts logged yet.</p>';
-            } else {
-                html += '<table><thead><tr><th>Quiz Title</th><th>Score</th><th>Accuracy</th><th>Date</th></tr></thead><tbody>';
-                data.quizzes.forEach(function(q) {
-                    var date = new Date(q.created_at).toLocaleDateString();
-                    html += '<tr><td>' + (q.title || 'General Quiz') + '</td><td>' + q.score + '</td><td>' + Math.round(q.accuracy_percentage) + '%</td><td>' + date + '</td></tr>';
-                });
-                html += '</tbody></table>';
-            }
-            
-            html += '<button class="print-btn" onclick="window.print()">Print Report Card</button>';
-            html += '</div>';
-            html += '</body></html>';
-            
-            printWindow.document.write(html);
-            printWindow.document.close();
-        }
-    } catch(e) {
-        console.error('Error generating report card:', e);
-    }
-}
-
-function triggerMentorQuery(queryText) {
-    var inp = document.getElementById('chat-input') || document.querySelector('.chat-input-area input');
-    var sendBtn = document.getElementById('chat-send-btn') || document.getElementById('send-btn') || document.querySelector('.chat-input-area button');
-    
-    if (inp) {
-        inp.value = queryText;
-        if (sendBtn) {
-            sendBtn.click();
-            var chatSec = document.getElementById('chat-section') || document.getElementById('chat') || document.getElementById('ai-assistant');
-            if (chatSec) {
-                chatSec.scrollIntoView({ behavior: 'smooth' });
-            }
-        }
-    } else {
-        if (typeof window.sendMessage === 'function') {
-            window.sendMessage(queryText);
-        }
-    }
-}
-
-function triggerConfetti() {
-    var colors = ['#f5a94e', '#3b82f6', '#10b981', '#a855f7', '#ef4444'];
-    var container = document.createElement('div');
-    container.style.position = 'fixed';
-    container.style.top = 0;
-    container.style.left = 0;
-    container.style.width = '100vw';
-    container.style.height = '100vh';
-    container.style.pointerEvents = 'none';
-    container.style.zIndex = '999999';
-    document.body.appendChild(container);
-    
-    for (var i = 0; i < 75; i++) {
-        var particle = document.createElement('div');
-        particle.style.position = 'absolute';
-        particle.style.width = (Math.random() * 8 + 6) + 'px';
-        particle.style.height = (Math.random() * 15 + 8) + 'px';
-        particle.style.background = colors[Math.floor(Math.random() * colors.length)];
-        particle.style.left = '50%';
-        particle.style.bottom = '0%';
-        particle.style.borderRadius = '2px';
-        container.appendChild(particle);
-        
-        var angle = Math.random() * Math.PI - Math.PI/2;
-        var velocity = Math.random() * 15 + 15;
-        var spin = Math.random() * 720 - 360;
-        
-        animateParticle(particle, angle, velocity, spin);
-    }
-    
-    setTimeout(function() {
-        container.remove();
-    }, 3000);
-}
-
-function animateParticle(el, angle, velocity, spin) {
-    var x = 0;
-    var y = window.innerHeight;
-    var vx = Math.sin(angle) * velocity;
-    var vy = -Math.cos(angle) * velocity * 1.5;
-    var gravity = 0.6;
-    var currentRotation = 0;
-    
-    function update() {
-        x += vx;
-        y += vy;
-        vy += gravity;
-        currentRotation += spin * 0.03;
-        
-        el.style.left = (window.innerWidth / 2) + x + 'px';
-        el.style.top = y + 'px';
-        el.style.transform = 'rotate(' + currentRotation + 'deg)';
-        
-        if (y < window.innerHeight + 50) {
-            requestAnimationFrame(update);
-        }
-    }
-    requestAnimationFrame(update);
-}
-
-function renderStreakCalendar() {
-    var container = document.getElementById('streak-calendar-row');
-    if (!container) return;
-    
-    var todayDate = new Date();
-    var currentDayOfWeek = todayDate.getDay(); // 0 (Sun) to 6 (Sat)
-    var daysShort = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-    
-    var lastActive = localStorage.getItem('dtv_last_active');
-    var currentStreak = parseInt(localStorage.getItem('dtv_streak') || '0', 10);
-    
-    if (window.APP_DATA && window.APP_DATA.streak && typeof window.APP_DATA.streak.current !== 'undefined') {
-        lastActive = window.APP_DATA.streak.lastActive;
-        currentStreak = window.APP_DATA.streak.current;
-    }
-    
-    var html = '';
-    for (var i = 0; i < 7; i++) {
-        var dayName = daysShort[i];
-        var isActive = false;
-        
-        if (i === currentDayOfWeek) {
-            isActive = (lastActive === todayDate.toDateString());
-        } else if (i < currentDayOfWeek) {
-            var diff = currentDayOfWeek - i;
-            var todayIsActive = (lastActive === todayDate.toDateString());
-            if (todayIsActive) {
-                isActive = (currentStreak > diff);
-            } else {
-                isActive = (currentStreak >= diff);
-            }
-        }
-        
-        var bg = isActive ? 'linear-gradient(135deg, #ef4444, #f5a94e)' : 'rgba(255,255,255,0.06)';
-        var color = isActive ? '#000' : 'var(--mu)';
-        var border = isActive ? 'none' : '1px solid rgba(255,255,255,0.1)';
-        var fontWeight = isActive ? 'bold' : 'normal';
-        
-        html += '<div style="display:flex; flex-direction:column; align-items:center; gap:0.25rem;">';
-        html += '<span style="font-size:0.7rem; color:var(--mu);">' + dayName + '</span>';
-        html += '<div style="width:24px; height:24px; border-radius:50%; background:' + bg + '; color:' + color + '; border:' + border + '; display:flex; align-items:center; justify-content:center; font-size:0.75rem; font-weight:' + fontWeight + '; transition: all 0.3s ease;">' + (isActive ? '✓' : '') + '</div>';
-        html += '</div>';
-    }
-    container.innerHTML = html;
-}
-
-/* ========================================================
-   CAREER EXPLORER SUBJECT MAP, Personalised MATCHING, & SIMULATOR
-   ======================================================== */
-
-var SUBJECT_MAP = {
-    'math': ['software', 'data', 'actuary', 'quant', 'finance', 'statistics', 'cryptograph', 'engineering', 'researcher', 'machine learning', 'ai/ml', 'algorithms', 'physics', 'architect'],
-    'maths': ['software', 'data', 'actuary', 'quant', 'finance', 'statistics', 'cryptograph', 'engineering', 'researcher', 'machine learning', 'ai/ml', 'algorithms', 'physics', 'architect'],
-    'mathematics': ['software', 'data', 'actuary', 'quant', 'finance', 'statistics', 'cryptograph', 'engineering', 'researcher', 'machine learning', 'ai/ml', 'algorithms', 'physics', 'architect'],
-    'physics': ['engineering', 'hardware', 'aerospace', 'astrophysics', 'researcher', 'scientist', 'robotics', 'nanotechnology', 'nuclear', 'geophysics'],
-    'chemistry': ['chemical', 'pharma', 'medicine', 'biotech', 'forensic', 'material scientist', 'toxicologist', 'pharmacist', 'lab'],
-    'biology': ['medicine', 'doctor', 'biotech', 'geneticist', 'virologist', 'botanist', 'zoologist', 'dentist', 'veterinarian', 'microbiologist', 'marine biologist', 'healthcare'],
-    'bio': ['medicine', 'doctor', 'biotech', 'geneticist', 'virologist', 'botanist', 'zoologist', 'dentist', 'veterinarian', 'microbiologist', 'marine biologist', 'healthcare'],
-    'science': ['research', 'engineering', 'scientist', 'medicine', 'healthcare', 'technology', 'biotech', 'physics', 'chemistry', 'biology'],
-    'accounts': ['chartered accountant', 'ca', 'finance', 'investment bank', 'actuary', 'auditor', 'tax', 'analyst', 'cfo', 'business'],
-    'commerce': ['chartered accountant', 'ca', 'finance', 'investment bank', 'actuary', 'auditor', 'tax', 'analyst', 'cfo', 'business', 'mba', 'marketing', 'product manager'],
-    'economics': ['economist', 'policy analyst', 'investment bank', 'finance', 'consultant', 'data scientist', 'actuary', 'market researcher'],
-    'arts': ['designer', 'creative', 'writer', 'journalist', 'animator', 'ux', 'interior designer', 'fashion', 'artist', 'content creator', 'education'],
-    'social studies': ['policy analyst', 'historian', 'sociologist', 'archaeologist', 'civil services', 'upsc', 'lawyer', 'journalist', 'foreign service'],
-    'history': ['historian', 'archaeologist', 'curator', 'civil services', 'upsc', 'teacher', 'writer']
-};
-
-function calculateStudentMatchScore(c, profile) {
-    var score = 70; // baseline
-    var stream = (c.stream || '').toLowerCase();
-    
-    if (profile.type === 'school') {
-        var cls = parseInt(profile.classLevel || '10', 10);
-        if (cls <= 8) {
-            score += 15;
-        } else if (cls <= 10) {
-            if (stream.includes('science') || stream.includes('creative') || stream.includes('technology')) {
-                score += 20;
-            }
-        } else {
-            var focus = (profile.focusPlan || '').toLowerCase();
-            if (focus.includes('science') && (stream.includes('science') || stream.includes('engineering') || stream.includes('technology'))) {
-                score += 25;
-            } else if (focus.includes('commerce') && (stream.includes('business') || stream.includes('government'))) {
-                score += 25;
-            } else {
-                score += 15;
-            }
-        }
-    } else {
-        var uniStream = (profile.stream || '').toLowerCase();
-        if (uniStream.includes('cse') || uniStream.includes('tech') || uniStream.includes('computer')) {
-            if (stream.includes('technology') || stream.includes('engineering')) {
-                score += 28;
-            }
-        } else if (uniStream.includes('com') || uniStream.includes('bus') || uniStream.includes('mba') || uniStream.includes('econ')) {
-            if (stream.includes('business') || stream.includes('management') || stream.includes('government')) {
-                score += 28;
-            }
-        } else {
-            if (stream.includes('creative') || stream.includes('education')) {
-                score += 28;
-            }
-        }
-    }
-    
-    // Stable hash variance
-    var hash = 0;
-    for (var i = 0; i < c.id.length; i++) {
-        hash = c.id.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    var variance = Math.abs(hash % 10);
-    score += variance;
-    return Math.min(99, score);
-}
-
-function filterCareersSalary(val) {
-    currentSalaryFilter = val;
-    renderCareers();
-}
-
-function filterCareersRemote(val) {
-    currentRemoteFilter = val;
-    renderCareers();
-}
-
-function openCareerSimulator(id) {
-    if (!isLoggedIn()) {
-        showToast('🔒', 'Please sign in to access Career Simulator.');
-        openLoginPage();
-        return;
-    }
-    var c = CAREERS.find(function(x) { return x.id === id; });
-    if (!c) return;
-
-    // Create modal elements
-    var modal = document.createElement('div');
-    modal.id = 'career-simulator-modal';
-    modal.style.position = 'fixed';
-    modal.style.top = '0';
-    modal.style.left = '0';
-    modal.style.width = '100vw';
-    modal.style.height = '100vh';
-    modal.style.background = 'rgba(10, 10, 12, 0.96)';
-    modal.style.zIndex = '99999';
-    modal.style.display = 'flex';
-    modal.style.justifyContent = 'center';
-    modal.style.alignItems = 'center';
-    modal.style.overflowY = 'auto';
-    modal.style.padding = '1.5rem';
-
-    var steps = c.trajectory || [
-        { level: 'Entry-Level', role: 'Junior ' + c.title, salary: c.salary },
-        { level: 'Senior-Level', role: 'Senior ' + c.title, salary: '2x Entry LPA' }
-    ];
-
-    var salGraphHtml = '';
-    steps.forEach(function(s, idx) {
-        var salVal = s.salary.match(/\d+/g);
-        var heightPct = salVal ? Math.min(100, Math.max(30, parseInt(salVal[salVal.length - 1], 10) * 2)) : 40;
-        salGraphHtml += '<div style="display:flex; flex-direction:column; align-items:center; flex:1; gap:0.5rem; justify-content:flex-end; height:120px;">' +
-            '<span style="font-size:0.75rem; color:#6ee7b7; font-weight:bold;">' + escapeHTML(s.salary) + '</span>' +
-            '<div style="width:28px; height:' + heightPct + 'px; background:linear-gradient(0deg, #6366f1, #a855f7); border-radius:4px 4px 0 0; transition:all 0.5s ease;"></div>' +
-            '<span style="font-size:0.7rem; color:var(--mu); text-align:center;">' + escapeHTML(s.level) + '</span>' +
-            '</div>';
-    });
-
-    var skillsListHtml = c.skills.map(function(s, idx) {
-        return '<label style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.6rem; font-size:0.85rem; color:var(--wh2); cursor:pointer;">' +
-            '<input type="checkbox" onchange="simulateAcquireSkill(\'' + c.id + '\', ' + idx + ', this)" style="cursor:pointer;">' +
-            '<span><strong>' + escapeHTML(s.n) + '</strong> (' + escapeHTML(s.l) + ')</span>' +
-            '</label>';
-    }).join('');
-
-    modal.innerHTML = '<div style="background:#1e293b; border:1px solid #334155; border-radius:12px; max-width:850px; width:100%; max-height:90vh; overflow-y:auto; padding:2rem; position:relative; box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);">' +
-        '<button onclick="closeCareerSimulator()" style="position:absolute; top:1.25rem; right:1.25rem; background:transparent; border:none; color:var(--mu); font-size:1.5rem; cursor:pointer;">✕</button>' +
-        '<div style="display:flex; align-items:center; gap:0.6rem; margin-bottom:1rem;">' +
-            '<span style="font-size:2.2rem;">' + c.icon + '</span>' +
-            '<div>' +
-                '<h2 style="margin:0; font-size:1.6rem; color:#f5a94e;">' + escapeHTML(c.title) + ' trajectory simulator</h2>' +
-                '<p style="margin:0.25rem 0 0 0; font-size:0.85rem; color:var(--mu);">' + escapeHTML(c.stream) + '</p>' +
-            '</div>' +
-        '</div>' +
-        '<p style="font-size:0.9rem; color:var(--mu); line-height:1.6; margin-bottom:1.5rem;">Simulate your skills development and career pathway milestones. Acquire key milestones to complete your career simulation and test your readiness.</p>' +
-        
-        '<div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:1.5rem; flex-wrap:wrap;">' +
-            '<div style="background:#0f172a; padding:1.2rem; border-radius:8px; border:1px solid #334155;">' +
-                '<h3 style="margin-top:0; color:#60a5fa; font-size:1rem; border-bottom:1px solid #334155; padding-bottom:0.4rem; margin-bottom:0.8rem;">🛠️ Target Core Milestones</h3>' +
-                '<div style="display:flex; flex-direction:column;">' + skillsListHtml + '</div>' +
-            '</div>' +
-            '<div style="display:flex; flex-direction:column; gap:1rem;">' +
-                '<div style="background:#0f172a; padding:1.2rem; border-radius:8px; border:1px solid #334155;">' +
-                    '<h3 style="margin-top:0; color:#60a5fa; font-size:1rem; margin-bottom:0.8rem;">📈 Projected Earnings Scale</h3>' +
-                    '<div style="display:flex; gap:1rem; align-items:flex-end; justify-content:space-around;">' + salGraphHtml + '</div>' +
-                '</div>' +
-                '<div style="background:#0f172a; padding:1.2rem; border-radius:8px; border:1px solid #334155; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center;">' +
-                    '<span style="font-size:0.8rem; color:var(--mu); margin-bottom:0.25rem;">SIMULATOR COMPLETION</span>' +
-                    '<strong id="sim-progress-pct" style="font-size:1.8rem; color:#ef4444; font-weight:bold;">0%</strong>' +
-                    '<div class="mini-bar" style="margin-top:0.5rem; background:rgba(255,255,255,0.08); height:8px; width:150px; border-radius:4px; overflow:hidden;"><span id="sim-progress-bar" style="width:0%; background:#ef4444; height:8px; display:block; transition:all 0.3s ease;"></span></div>' +
-                '</div>' +
-            '</div>' +
-        '</div>' +
-        '<div style="text-align:right;">' +
-            '<button id="btn-complete-simulation" disabled style="background:var(--mu); color:#000; font-weight:bold; padding:0.75rem 2rem; border-radius:6px; border:none; cursor:default; font-size:0.9rem; transition:all 0.3s ease;" onclick="completeSimulation(\'' + c.id + '\')">🔮 Complete Simulation (+50 XP)</button>' +
-        '</div>' +
-        '</div>';
-    
-    document.body.appendChild(modal);
-    document.body.style.overflow = 'hidden';
-}
-
-function closeCareerSimulator() {
-    var modal = document.getElementById('career-simulator-modal');
-    if (modal) modal.remove();
-    document.body.style.overflow = 'auto';
-}
-
-async function simulateAcquireSkill(careerId, idx, checkbox) {
-    var modal = document.getElementById('career-simulator-modal');
-    if (!modal) return;
-
-    var c = CAREERS.find(function(x) { return x.id === careerId; });
-    if (!c) return;
-
-    var checkedCount = modal.querySelectorAll('input[type="checkbox"]:checked').length;
-    var pct = Math.round((checkedCount / c.skills.length) * 100);
-
-    var pctEl = document.getElementById('sim-progress-pct');
-    var barEl = document.getElementById('sim-progress-bar');
-    
-    if (pctEl) {
-        pctEl.textContent = pct + '%';
-        if (pct >= 100) {
-            pctEl.style.color = '#10b981';
-        } else if (pct >= 50) {
-            pctEl.style.color = '#f59e0b';
-        } else {
-            pctEl.style.color = '#ef4444';
-        }
-    }
-    if (barEl) {
-        barEl.style.width = pct + '%';
-        if (pct >= 100) {
-            barEl.style.background = '#10b981';
-        } else if (pct >= 50) {
-            barEl.style.background = '#f59e0b';
-        } else {
-            barEl.style.background = '#ef4444';
-        }
-    }
-
-    // Update complete button status
-    var completeBtn = document.getElementById('btn-complete-simulation');
-    if (completeBtn) {
-        if (pct >= 100) {
-            completeBtn.disabled = false;
-            completeBtn.style.background = 'linear-gradient(90deg, #10b981, #34d399)';
-            completeBtn.style.color = '#fff';
-            completeBtn.style.cursor = 'pointer';
-        } else {
-            completeBtn.disabled = true;
-            completeBtn.style.background = 'var(--mu)';
-            completeBtn.style.color = '#000';
-            completeBtn.style.cursor = 'default';
-        }
-    }
-
-    // Award +10 XP for checkbox change
-    if (checkbox.checked) {
-        // Trigger small particle pop or sound
-        var loggedIn = window.APP_DATA && window.APP_DATA.userData && window.APP_DATA.userData.token;
-        if (loggedIn) {
-            try {
-                // Add skill simulation goal to database
-                var skillName = c.skills[idx].n;
-                var res = await fetch('/api/v1/users/goals', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + window.APP_DATA.userData.token
-                    },
-                    body: JSON.stringify({ title: 'Acquired ' + skillName + ' (Simulated in ' + c.title + ')', category: 'Simulation' })
-                });
-                if (res.ok) {
-                    var goalData = await res.json();
-                    await fetch('/api/v1/users/goals/' + goalData.goal.id, {
-                        method: 'PATCH',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': 'Bearer ' + window.APP_DATA.userData.token
-                        },
-                        body: JSON.stringify({ status: 'Achieved' })
-                    });
-                    if (typeof showToast === 'function') {
-                        showToast('🔮', 'Milestone Acquired! +10 XP.');
-                    }
-                    renderXpProgress();
-                    renderLeaderboard();
-                }
-            } catch(e) {
-                console.error('Error logging milestone XP:', e);
-            }
-        } else {
-            if (typeof showToast === 'function') {
-                showToast('🔮', 'Milestone Acquired (Guest Mode).');
-            }
-        }
-    }
-}
-
-async function completeSimulation(careerId) {
-    var c = CAREERS.find(function(x) { return x.id === careerId; });
-    if (!c) return;
-    
-    closeCareerSimulator();
-    if (typeof triggerConfetti === 'function') triggerConfetti();
-
-    var loggedIn = window.APP_DATA && window.APP_DATA.userData && window.APP_DATA.userData.token;
-    if (loggedIn) {
-        try {
-            // Log simulation completion to get +50 XP
-            var res = await fetch('/api/v1/users/goals', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + window.APP_DATA.userData.token
-                },
-                body: JSON.stringify({ title: 'Completed ' + c.title + ' Career Simulation', category: 'Simulation' })
-            });
-            if (res.ok) {
-                var goalData = await res.json();
-                await fetch('/api/v1/users/goals/' + goalData.goal.id, {
-                    method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + window.APP_DATA.userData.token
-                    },
-                    body: JSON.stringify({ status: 'Achieved' })
-                });
-                if (typeof showToast === 'function') {
-                    showToast('🏆', 'Career simulation complete! +50 XP.');
-                }
-                renderXpProgress();
-                renderLeaderboard();
-            }
-        } catch(e) {
-            console.error('Error completing simulation:', e);
-        }
-    } else {
-        if (typeof showToast === 'function') {
-            showToast('🏆', 'Career simulation complete (Guest Mode).');
-        }
-    }
-}
-
-
-        function checkProtectedHashRoutes() {
-            var hash = window.location.hash;
-            var protectedPrefixes = ['#student-dashboard', '#ai-section', '#analyzer-promo', '#dashboard'];
-            var isProtected = protectedPrefixes.some(function(p) { return hash === p || hash.startswith(p + '/'); });
-            if (isProtected && !isLoggedIn()) {
-                window.location.hash = '';
-                showToast('🔒', 'Please sign in to access premium feature sections.');
-                openLoginPage();
-                return false;
-            }
-            return true;
-        }
-
-        window.addEventListener('hashchange', checkProtectedHashRoutes);
-
-/* ========================================================
-   DEDICATED PROBLEM CARDS INSIGHT READER MODAL
-   ======================================================== */
-
-const PROBLEM_INSIGHTS_DATA = {
-    'years-wasted': {
-        icon: '⏳',
-        tag: 'Time & Career Alignment Loss',
-        title: 'The High Cost of Time: Why 2–4 Years Are Wasted in Wrong Career Paths',
-        summary: 'Millions of Indian students realize after 2 to 4 years of college that their chosen stream does not align with their actual strengths, market reality, or personal interests.',
-        stats: [
-            { label: 'Degree Mismatch Rate', val: '44%', desc: 'Graduates who realize mid-way or after graduation that they picked the wrong course.' },
-            { label: 'Avg Financial Loss', val: '₹3L – ₹10L', desc: 'Direct tuition and living expenses spent on misaligned academic degrees.' },
-            { label: 'Pivot Career Delay', val: '2.5 Years', desc: 'Average time lost retraining or switching fields post-graduation.' }
-        ],
-        deepDive: [
-            {
-                heading: 'Why Does Career Mismatch Happen Early?',
-                text: 'Traditional education forces 16-18 year old students to make irreversible stream choices (Engineering, Medical, Commerce, Humanities) based on class 10/12 marks rather than cognitive strengths, aptitude, or 5-year industry hiring projections.'
-            },
-            {
-                heading: 'The Friction of Late Pivoting',
-                text: 'Switching fields after spending 3-4 years in college requires unlearning legacy subjects, taking expensive upskilling bootcamps, and starting at entry-level salaries alongside candidates 4 years younger.'
-            }
-        ],
-        news: [
-            {
-                date: 'Aug 2026',
-                source: 'Tech India Market Report',
-                title: 'AI Skill-First Hiring Replaces Rigid Degree Filters',
-                desc: 'Over 62% of top tech employers in Bengaluru and Gurgaon now prioritize practical portfolio projects and cognitive problem-solving over specific college degree names.'
-            },
-            {
-                date: 'Jul 2026',
-                source: 'Education Policy Review',
-                title: 'NITI Aayog Urges Early Aptitude Simulations in Colleges',
-                desc: 'National report highlights that early exposure to multi-agent career simulations prevents over ₹4,000 Crore in wasted tuition across tier-2 and tier-3 cities.'
-            }
-        ],
-        dtvSolution: {
-            title: 'How Digital Twin Verse Eliminates Wasted Years',
-            points: [
-                'Simulate 50+ career paths in 10 minutes using AI digital twins before enrolling in costly courses.',
-                'Inspect real-world day-in-the-life tasks, salary trajectories, and skill requirements for 2026–2030.',
-                'Get personalized stream transition roadmaps without discarding your existing academic background.'
-            ]
-        }
-    },
-    'mounting-stress': {
-        icon: '😰',
-        tag: 'Mental Health & Decision Anxiety',
-        title: 'The Career Anxiety Epidemic: Navigating Family Pressure & Peer Comparison',
-        summary: 'Career ambiguity and unvetted advice from relatives create widespread decision paralysis, anxiety, and burnout among Indian students aged 16–24.',
-        stats: [
-            { label: 'High Career Stress', val: '68%', desc: 'Students reporting severe anxiety regarding post-college employment.' },
-            { label: 'Conflicting Guidance', val: '81%', desc: 'Students overwhelmed by contradictory advice from parents, coaching centers, and social media.' },
-            { label: 'Confidence Boost', val: '3.2x', desc: 'Higher clarity and mental peace reported when using data-backed AI career simulations.' }
-        ],
-        deepDive: [
-            {
-                heading: 'The Paradox of Endless Information',
-                text: 'Students today are flooded with hyped YouTube videos, LinkedIn flexing, and aggressive coaching institute ads. Without objective data, every option feels risky, leading to chronic FOMO and decision paralysis.'
-            },
-            {
-                heading: 'Parental Expectation vs. 2026 Market Realities',
-                text: 'Parents often push for traditional 1990s career stability (government exams, classical software engineering) while missing emerging high-growth roles in AI Product Management, MLOps, Data Science, and Cybersecurity.'
-            }
-        ],
-        news: [
-            {
-                date: 'Jul 2026',
-                source: 'Indian Journal of Youth Wellbeing',
-                title: 'Student Stress Shifts From Exams to Career Trajectory Ambiguity',
-                desc: 'Survey of 15,000 students reveals that 74% experience greater anxiety about choosing the wrong long-term career path than passing final semester examinations.'
-            },
-            {
-                date: 'Jun 2026',
-                source: 'EdTech Today',
-                title: 'Private AI Career Guidance Replaces High-Pressure Coaching',
-                desc: 'Interactive AI counselors are proving 4x more effective at reducing career anxiety by providing unbiased, data-validated clarity in a private, non-judgmental environment.'
-            }
-        ],
-        dtvSolution: {
-            title: 'How Digital Twin Verse Reduces Career Anxiety',
-            points: [
-                'Provides a private, judgment-free AI mentor accessible 24/7 via text and voice.',
-                'Visualizes clear, milestone-driven roadmaps so you always know your exact next step.',
-                'Offers dedicated Parent-Guide reports to help align family expectations with real 2026 market data.'
-            ]
-        }
-    },
-    'no-personalisation': {
-        icon: '🎯',
-        tag: 'Hyper-Personalized Guidance',
-        title: 'One Size Fits None: Why Generic Career Counseling Fails Students',
-        summary: 'Institutional career counseling in India relies on 1:3000 counselor ratios and static, outdated aptitude templates that ignore individual cognitive uniqueness.',
-        stats: [
-            { label: 'Student-to-Counselor', val: '1 : 3,000', desc: 'Average institutional counselor ratio across Indian colleges and schools.' },
-            { label: 'Outdated Advice', val: '78%', desc: 'Counseling sessions using decade-old industry job descriptions.' },
-            { label: 'Cognitive Profiling', val: '100%', desc: 'Multi-dimensional AI modeling tailored to your specific strengths and speed.' }
-        ],
-        deepDive: [
-            {
-                heading: 'The Flaw of Standardized Tests',
-                text: 'Legacy psychometric tests categorize complex human minds into 4-5 generic boxes. They ignore non-linear skill combinations—such as combining artistic design with data analytics or psychological insight with AI prompt engineering.'
-            },
-            {
-                heading: 'Ignoring Rapid Market Telemetry',
-                text: 'Static career counseling cannot adapt to fast-evolving tech shifts. A guide written 2 years ago misses Retrieval-Augmented Generation (RAG), Autonomous AI Agents, and specialized Cloud Security roles.'
-            }
-        ],
-        news: [
-            {
-                date: 'Aug 2026',
-                source: 'Future of Work Forum',
-                title: 'Hybrid Micro-Specializations Surge in Indian Tech Ecosystem',
-                desc: 'Employers report that 1 in 3 new job descriptions requires hybrid skills (e.g., Domain Expertise + Generative AI Literacy) that standard counselors fail to evaluate.'
-            },
-            {
-                date: 'Jul 2026',
-                source: 'AI in Education Summit',
-                title: 'Cognitive Digital Twins Revolutionize Student Mentorship',
-                desc: 'Next-gen career platforms build dynamic digital replicas of student skills to provide continuous, real-time guidance rather than one-time static advice.'
-            }
-        ],
-        dtvSolution: {
-            title: 'How Digital Twin Verse Delivers 100% Personalization',
-            points: [
-                'Models your unique cognitive profile, interests, learning pace, and ambition using multi-agent AI.',
-                'Dynamically updates your career recommendations as you complete projects, earn certifications, or acquire skills.',
-                'Maps hyper-specific niche career paths aligned with your exact personal strengths.'
-            ]
-        }
-    },
-    'missed-earnings': {
-        icon: '💸',
-        tag: 'Lifetime Compensation & Trajectory',
-        title: 'The Hidden Price Tag: How Early Career Misalignment Costs Millions',
-        summary: 'Starting in a misaligned or low-demand role leads to lower initial CTC, delayed promotions, and an estimated ₹30L–₹50L income gap over a 10-year period.',
-        stats: [
-            { label: 'Starting Salary Premium', val: '35% – 50%', desc: 'Higher entry-level CTC achieved by students entering high-fit specialized roles.' },
-            { label: '10-Yr Compounding Gap', val: '₹40+ Lakhs', desc: 'Estimated cumulative loss in lifetime earnings due to early role misalignment.' },
-            { label: 'Promotion Velocity', val: '2x Faster', desc: 'Career progression speed when skills match high-demand market telemetry.' }
-        ],
-        deepDive: [
-            {
-                heading: 'The Compounding Effect of Early Career Entry',
-                text: 'Your first job determines your baseline salary, promotion trajectory, and network. Starting in a declining sector requires years of uphill effort to match the compensation of peers who aligned with high-growth industries from day one.'
-            },
-            {
-                heading: 'The 2026 Salary Polarization',
-                text: 'The Indian job market is splitting: generic generalist software jobs are stagnating, while specialized roles (Data Engineering, AI Product Leads, DevOps, Cybersecurity) command 40–70% higher compensation and faster equity grants.'
-            }
-        ],
-        news: [
-            {
-                date: 'Aug 2026',
-                source: 'India Compensation Survey 2026',
-                title: 'Specialized Tech & AI Salaries Reach All-Time High in Tier 1-2 Cities',
-                desc: 'Fresh graduates skilled in Generative AI workflows and Cloud Security earn starting packages between ₹12 LPA – ₹22 LPA compared to ₹3.5 LPA for generic roles.'
-            },
-            {
-                date: 'Jun 2026',
-                source: 'Economic Times Tech',
-                title: 'High Career Growth Velocity Linked to Early Placement Matching',
-                desc: 'Data shows students who utilize career trajectory simulation tools achieve senior-level titles 3 years faster than average graduates.'
-            }
-        ],
-        dtvSolution: {
-            title: 'How Digital Twin Verse Maximizes Your Earnings Potential',
-            points: [
-                'Simulate 10-year salary trajectories and growth rates across 1,000+ modern roles before making stream choices.',
-                'Identify high-ROI skills and certifications that yield the highest starting compensation packages in India.',
-                'Track your readiness with automated placement scorecards to negotiate job offers with complete confidence.'
-            ]
-        }
-    }
-};
-
-function openProblemInsight(problemId) {
-    const modal = document.getElementById('problem-insight-modal');
-    const body = document.getElementById('prob-modal-body');
-    if (!modal || !body) return;
-
-    const data = PROBLEM_INSIGHTS_DATA[problemId];
-    if (!data) return;
-
-    body.innerHTML = `
-        <div class="prob-modal-header">
-            <div class="prob-modal-icon">${data.icon}</div>
-            <div>
-                <span class="prob-modal-tag">${data.tag}</span>
-                <h2 class="prob-modal-title">${data.title}</h2>
-            </div>
-        </div>
-        <p class="prob-modal-summary">${data.summary}</p>
-
-        <!-- STATS GRID -->
-        <div class="prob-modal-stats">
-            ${data.stats.map(s => `
-                <div class="prob-stat-card">
-                    <div class="prob-stat-val">${s.val}</div>
-                    <div class="prob-stat-lbl">${s.label}</div>
-                    <div class="prob-stat-desc">${s.desc}</div>
-                </div>
-            `).join('')}
-        </div>
-
-        <!-- DEEP DIVE SECTION -->
-        <div class="prob-modal-sec">
-            <h3 class="prob-sec-title">💡 Deep Dive Analysis</h3>
-            ${data.deepDive.map(d => `
-                <div class="prob-deep-box">
-                    <h4>${d.heading}</h4>
-                    <p>${d.text}</p>
-                </div>
-            `).join('')}
-        </div>
-
-        <!-- LATEST 2026 NEWS & MARKET TELEMETRY -->
-        <div class="prob-modal-sec">
-            <h3 class="prob-sec-title">📰 Latest 2026 Industry News & Market Updates</h3>
-            <div class="prob-news-grid">
-                ${data.news.map(n => `
-                    <div class="prob-news-card">
-                        <div class="prob-news-meta"><span>${n.source}</span> • <span>${n.date}</span></div>
-                        <h4 class="prob-news-title">${n.title}</h4>
-                        <p class="prob-news-desc">${n.desc}</p>
-                    </div>
-                `).join('')}
-            </div>
-        </div>
-
-        <!-- HOW DTV SOLVES IT -->
-        <div class="prob-modal-sol">
-            <h3>🚀 ${data.dtvSolution.title}</h3>
-            <ul>
-                ${data.dtvSolution.points.map(p => `<li>${p}</li>`).join('')}
-            </ul>
-            <div class="prob-modal-actions">
-                <a href="#ai-section" onclick="closeProblemInsight()" class="btn btn-out" style="border-color:#a78bfa; color:#a78bfa;">Talk to AI Mentor</a>
-                <button onclick="closeProblemInsight(); openAnalyzer();" class="btn btn-out" style="background:linear-gradient(135deg, #a78bfa, #3b82f6); color:#fff; border:none; cursor:pointer;">Analyze My Career Profile →</button>
-            </div>
-        </div>
-    `;
-
-    modal.style.display = 'flex';
-    document.body.style.overflow = 'hidden';
-}
-
-function closeProblemInsight() {
-    const modal = document.getElementById('problem-insight-modal');
-    if (!modal) return;
-    modal.style.display = 'none';
-    document.body.style.overflow = '';
-}
-
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        closeProblemInsight();
-    }
-});
+        })();

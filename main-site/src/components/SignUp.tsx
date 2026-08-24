@@ -277,7 +277,7 @@ export default function SignUp({ onSignInClick, onSignUpSuccess }: SignUpProps) 
                 id="role"
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
-                className={`glass-input w-full rounded-lg py-2.5 pl-10 pr-8 bg-[#f3f4f6] text-black border border-white/10 focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37] transition-all text-xs outline-none appearance-none cursor-pointer`}
+                className="glass-input w-full rounded-lg py-2.5 pl-10 pr-8 bg-[#f3f4f6] text-black border border-white/10 focus:border-[#d4af37] focus:ring-1 focus:ring-[#d4af37] transition-all text-xs outline-none appearance-none cursor-pointer"
               >
                 <option value="" disabled className="text-gray-500">
                   Select your role

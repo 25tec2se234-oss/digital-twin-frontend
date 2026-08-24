@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App.tsx';
 import './tailwind.css';
+import App from './App.tsx';
 
 // Ensure the root element exists
 const rootElement = document.getElementById('root');

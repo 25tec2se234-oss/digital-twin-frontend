@@ -69,7 +69,6 @@ export default function ShaderBackground() {
           vec3 bg = vec3(0.06, 0.08, 0.09); // Matches #101415 approx
           vec3 gold = vec3(0.83, 0.69, 0.22); // #d4af37
           vec3 violet = vec3(0.54, 0.36, 0.96); // #8b5cf6
-          vec3 orange = vec3(0.91, 0.55, 0.16); // #e88c2a (Brand orange)
           
           // Interaction
           vec2 mouse = u_mouse / u_resolution;
@@ -78,23 +77,13 @@ export default function ShaderBackground() {
           
           // Combine
           vec3 color = bg;
+          color = mix(color, violet, g * 0.2);
+          color = mix(color, gold, particles * 0.5);
+          color += gold * g * spot * 0.3;
           
-          // Light orange for moving lines
-          vec3 lightOrange = vec3(1.0, 0.7, 0.3);
-          vec3 gridColor = mix(orange, lightOrange, sin(u_time * 0.5 + gridUV.x * 2.0) * 0.5 + 0.5);
-          color = mix(color, gridColor, g * 0.7); // Increased from 0.25 to 0.7 for better visibility
-          
-          // Particles glow with a mix of gold and brand orange
-          vec3 particleGlow = mix(gold, orange, sin(u_time * 0.8) * 0.5 + 0.5);
-          color += particleGlow * particles * 0.6;
-          
-          // Mouse spotlight brings out the warm orange tones dynamically
-          color += orange * g * spot * 0.4;
-          
-          // Pulsing "Data Stream" with flowing orange and gold energy
+          // Pulsing "Data Stream"
           float pulse = smoothstep(0.95, 1.0, sin(gridUV.y * 12.0 - u_time * 3.5));
-          vec3 streamColor = mix(gold, orange, cos(gridUV.y * 5.0 - u_time * 2.0) * 0.5 + 0.5);
-          color += streamColor * pulse * perspective * 0.5;
+          color += gold * pulse * perspective * 0.4;
 
           gl_FragColor = vec4(color, 1.0);
       }

@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 // Determine base URL dynamically based on environment
-const defaultBaseUrl = 'https://digital-twin-verse-app.onrender.com';
+const defaultBaseUrl = '';
 
 // Create an Axios instance
 const api = axios.create({
